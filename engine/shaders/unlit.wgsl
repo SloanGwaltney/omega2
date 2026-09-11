@@ -11,7 +11,7 @@ struct VertexOut {
 }
 
 @group(0) @binding(0) var<uniform> view_proj: mat4x4<f32>;
-// Model matrices indexed by entity id, selected with the draw's firstInstance.
+// Model matrices packed in draw order, reached through the draw's firstInstance.
 @group(0) @binding(1) var<storage, read> models: array<mat4x4<f32>>;
 
 @vertex

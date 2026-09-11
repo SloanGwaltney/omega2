@@ -77,27 +77,79 @@ start_render_pass_system :: proc(app: ^App) {
 	)
 }
 
-// Writes the camera matrix and every entity's model matrix to the gpu. Model
-// matrices are indexed by entity id, so a draw selects one through
-// firstInstance. An entity without a Transform gets the identity.
+// Entities sharing a pipeline and a mesh, drawn with one instanced draw. Their
+// model matrices are contiguous in the model buffer starting at first_instance.
+Batch :: struct {
+	pipeline:       Pipeline,
+	offsets:        BufferOffsets,
+	index_count:    u32,
+	first_instance: u32,
+	count:          u32,
+}
+
+MAX_BATCHES :: 64
+
+// Writes the camera matrix to the gpu and builds this frame's batches, packing
+// the model matrices of each batch's entities contiguously into the model
+// buffer. An entity without a Transform gets the identity.
 upload_frame_uniforms_system :: proc(app: ^App) {
 	w := app.world
 	view_proj := [1]Mat4{camera_view_proj(app)}
 	gpu_buffer_write(app, &app.camera_uniform, view_proj[:])
 
+	app.batch_count = 0
+	for i in 0 ..< w.count {
+		drawable := pool_get(&w.drawable, Entity(i))
+		if drawable == nil {
+			continue
+		}
+		batch_for(app, drawable^).count += 1
+	}
+
+	next: u32
+	for &batch in app.batches[:app.batch_count] {
+		batch.first_instance = next
+		next += batch.count
+		// Reused below as the write cursor, ending back at the count.
+		batch.count = 0
+	}
+
 	for i in 0 ..< w.count {
 		e := Entity(i)
+		drawable := pool_get(&w.drawable, e)
+		if drawable == nil {
+			continue
+		}
+		batch := batch_for(app, drawable^)
 		transform := pool_get(&w.transform, e)
-		app.model_matrices[e] = transform == nil ? MAT4_IDENTITY : transform_matrix(transform^)
+		app.model_matrices[batch.first_instance + batch.count] =
+			transform == nil ? MAT4_IDENTITY : transform_matrix(transform^)
+		batch.count += 1
 	}
-	gpu_buffer_write(app, &app.models, app.model_matrices[:w.count])
+	gpu_buffer_write(app, &app.models, app.model_matrices[:next])
 }
 
-// Draws every entity with a Drawable. Grouped by pipeline so the pipeline and
-// its vertex buffer are bound once per group; the shared index buffer is bound
-// once for the frame and meshes are reached through firstIndex and baseVertex.
+// The batch matching drawable, appended if this frame has not seen it yet.
+@(private)
+batch_for :: proc(app: ^App, drawable: Drawable) -> ^Batch {
+	for &batch in app.batches[:app.batch_count] {
+		if batch.pipeline == drawable.pipeline && batch.offsets == drawable.offsets {
+			return &batch
+		}
+	}
+	assert(app.batch_count < MAX_BATCHES, "out of draw batches")
+	app.batches[app.batch_count] = Batch {
+		pipeline    = drawable.pipeline,
+		offsets     = drawable.offsets,
+		index_count = drawable.index_count,
+	}
+	app.batch_count += 1
+	return &app.batches[app.batch_count - 1]
+}
+
+// Draws every batch, one instanced draw each, with the pipeline and its vertex
+// buffer bound once per pipeline group.
 draw_render_system :: proc(app: ^App) {
-	w := app.world
 	pass := app.frame.pass
 	wgpu.RenderPassEncoderSetIndexBuffer(pass, app.indices.handle, INDEX_FORMAT, 0, wgpu.WHOLE_SIZE)
 	wgpu.RenderPassEncoderSetBindGroup(pass, 0, app.frame_bind_group)
@@ -105,9 +157,8 @@ draw_render_system :: proc(app: ^App) {
 	for pipeline in Pipeline {
 		bound := false
 		stride := layout_stride(pipeline_layout(pipeline))
-		for i in 0 ..< w.count {
-			drawable := pool_get(&w.drawable, Entity(i))
-			if drawable == nil || drawable.pipeline != pipeline {
+		for batch in app.batches[:app.batch_count] {
+			if batch.pipeline != pipeline {
 				continue
 			}
 			if !bound {
@@ -123,11 +174,11 @@ draw_render_system :: proc(app: ^App) {
 			}
 			wgpu.RenderPassEncoderDrawIndexed(
 				pass,
-				drawable.index_count,
-				1,
-				u32(drawable.offsets.index / size_of(Index)),
-				i32(drawable.offsets.vertex / stride),
-				u32(i),
+				batch.index_count,
+				batch.count,
+				u32(batch.offsets.index / size_of(Index)),
+				i32(batch.offsets.vertex / stride),
+				batch.first_instance,
 			)
 		}
 	}

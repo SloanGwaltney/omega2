@@ -32,9 +32,14 @@ App :: struct {
 	models:           GpuBuffer,
 	frame_layout:     wgpu.BindGroupLayout,
 	frame_bind_group: wgpu.BindGroup,
-	// Staging for models, indexed by entity id and uploaded whole each frame.
+	// Staging for models, packed in draw order and uploaded whole each frame.
 	model_matrices:   [MAX_ENTITIES]Mat4,
+	// Draw batches rebuilt each frame from the drawables.
+	batches:          [MAX_BATCHES]Batch,
+	batch_count:      int,
 	meshes:           MeshStorage,
+	// Called once per frame before the engine systems, if set.
+	user_update:      System,
 }
 
 /// Allocates the app with a 100MB world arena and a world living on it, and opens the window.
@@ -84,6 +89,9 @@ run_app :: proc(app: ^App) {
 			}
 		}
 
+		if app.user_update != nil {
+			app.user_update(app)
+		}
 		for system in UPDATE_SYSTEMS {
 			system(app)
 		}
@@ -151,7 +159,7 @@ create_window :: proc(app: ^App) {
 		width       = u32(width),
 		height      = u32(height),
 		alphaMode   = .Auto,
-		presentMode = .Fifo,
+		presentMode = .Immediate,
 	}
 	wgpu.SurfaceConfigure(app.surface, &app.surface_config)
 }
