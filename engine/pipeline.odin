@@ -20,9 +20,37 @@ pipeline_handle :: proc(app: ^App, pipeline: Pipeline) -> wgpu.RenderPipeline {
 	panic("unknown pipeline")
 }
 
-// Builds the unlit pipeline: one interleaved vertex buffer, no bind groups,
-// triangle list drawn with an index buffer. The index format is supplied at
-// draw time, not here, because the topology is not a strip.
+// Builds the frame bind group: the camera view projection matrix and the array
+// of model matrices, both shared by every pipeline and rewritten each frame.
+create_frame_bind_group :: proc(app: ^App) {
+	entries := [?]wgpu.BindGroupLayoutEntry {
+		{binding = 0, visibility = {.Vertex}, buffer = {type = .Uniform, minBindingSize = size_of(Mat4)}},
+		{binding = 1, visibility = {.Vertex}, buffer = {type = .ReadOnlyStorage, minBindingSize = size_of(Mat4)}},
+	}
+	app.frame_layout = wgpu.DeviceCreateBindGroupLayout(
+		app.device,
+		&{label = "frame", entryCount = len(entries), entries = &entries[0]},
+	)
+	if app.frame_layout == nil {
+		panic("failed to create frame bind group layout")
+	}
+
+	bindings := [?]wgpu.BindGroupEntry {
+		{binding = 0, buffer = app.camera_uniform.handle, size = app.camera_uniform.size},
+		{binding = 1, buffer = app.models.handle, size = app.models.size},
+	}
+	app.frame_bind_group = wgpu.DeviceCreateBindGroup(
+		app.device,
+		&{label = "frame", layout = app.frame_layout, entryCount = len(bindings), entries = &bindings[0]},
+	)
+	if app.frame_bind_group == nil {
+		panic("failed to create frame bind group")
+	}
+}
+
+// Builds the unlit pipeline: one interleaved vertex buffer, the frame bind
+// group at group 0, triangle list drawn with an index buffer. The index format
+// is supplied at draw time, not here, because the topology is not a strip.
 create_unlit_pipeline :: proc(app: ^App) {
 	module := wgpu.DeviceCreateShaderModule(
 		app.device,
@@ -32,6 +60,13 @@ create_unlit_pipeline :: proc(app: ^App) {
 		panic("failed to compile unlit shader")
 	}
 	defer wgpu.ShaderModuleRelease(module)
+
+	layouts := [?]wgpu.BindGroupLayout{app.frame_layout}
+	pipeline_layout := wgpu.DeviceCreatePipelineLayout(
+		app.device,
+		&{label = "unlit", bindGroupLayoutCount = len(layouts), bindGroupLayouts = &layouts[0]},
+	)
+	defer wgpu.PipelineLayoutRelease(pipeline_layout)
 
 	attributes := [?]wgpu.VertexAttribute {
 		{format = .Float32x3, offset = u64(offset_of(Vertex, pos)), shaderLocation = 0},
@@ -59,6 +94,7 @@ create_unlit_pipeline :: proc(app: ^App) {
 		app.device,
 		&{
 			label = "unlit",
+			layout = pipeline_layout,
 			vertex = {
 				module = module,
 				entryPoint = "vs_main",

@@ -10,10 +10,14 @@ struct VertexOut {
 	@location(1) uv: vec2<f32>,
 }
 
+@group(0) @binding(0) var<uniform> view_proj: mat4x4<f32>;
+// Model matrices indexed by entity id, selected with the draw's firstInstance.
+@group(0) @binding(1) var<storage, read> models: array<mat4x4<f32>>;
+
 @vertex
-fn vs_main(in: VertexIn) -> VertexOut {
+fn vs_main(in: VertexIn, @builtin(instance_index) instance: u32) -> VertexOut {
 	var out: VertexOut;
-	out.clip_pos = vec4<f32>(in.pos, 1.0);
+	out.clip_pos = view_proj * models[instance] * vec4<f32>(in.pos, 1.0);
 	out.color = in.color;
 	out.uv = in.uv;
 	return out;

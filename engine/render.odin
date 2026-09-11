@@ -39,6 +39,22 @@ start_render_pass_system :: proc(app: ^App) {
 	)
 }
 
+// Writes the camera matrix and every entity's model matrix to the gpu. Model
+// matrices are indexed by entity id, so a draw selects one through
+// firstInstance. An entity without a Transform gets the identity.
+upload_frame_uniforms_system :: proc(app: ^App) {
+	w := app.world
+	view_proj := [1]Mat4{camera_view_proj(app)}
+	gpu_buffer_write(app, &app.camera_uniform, view_proj[:])
+
+	for i in 0 ..< w.count {
+		e := Entity(i)
+		transform := pool_get(&w.transform, e)
+		app.model_matrices[e] = transform == nil ? MAT4_IDENTITY : transform_matrix(transform^)
+	}
+	gpu_buffer_write(app, &app.models, app.model_matrices[:w.count])
+}
+
 // Draws every entity with a Drawable. Grouped by pipeline so the pipeline and
 // its vertex buffer are bound once per group; the shared index buffer is bound
 // once for the frame and meshes are reached through firstIndex and baseVertex.
@@ -46,6 +62,7 @@ draw_render_system :: proc(app: ^App) {
 	w := app.world
 	pass := app.frame.pass
 	wgpu.RenderPassEncoderSetIndexBuffer(pass, app.indices.handle, INDEX_FORMAT, 0, wgpu.WHOLE_SIZE)
+	wgpu.RenderPassEncoderSetBindGroup(pass, 0, app.frame_bind_group)
 
 	for pipeline in Pipeline {
 		bound := false
@@ -72,7 +89,7 @@ draw_render_system :: proc(app: ^App) {
 				1,
 				u32(drawable.offsets.index / size_of(Index)),
 				i32(drawable.offsets.vertex / stride),
-				0,
+				u32(i),
 			)
 		}
 	}

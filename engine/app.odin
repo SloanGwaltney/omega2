@@ -13,20 +13,26 @@ WINDOW_WIDTH :: 1920
 WINDOW_HEIGHT :: 1080
 
 App :: struct {
-	world_arena:    virtual.Arena,
-	world:          ^World,
-	window:         ^sdl3.Window,
-	instance:       wgpu.Instance,
-	surface:        wgpu.Surface,
-	adapter:        wgpu.Adapter,
-	device:         wgpu.Device,
-	queue:          wgpu.Queue,
-	surface_config: wgpu.SurfaceConfiguration,
-	frame:          Frame,
-	unlit_pipeline: wgpu.RenderPipeline,
-	unlit_vertices: GpuBuffer,
-	indices:        GpuBuffer,
-	meshes:         MeshStorage,
+	world_arena:      virtual.Arena,
+	world:            ^World,
+	window:           ^sdl3.Window,
+	instance:         wgpu.Instance,
+	surface:          wgpu.Surface,
+	adapter:          wgpu.Adapter,
+	device:           wgpu.Device,
+	queue:            wgpu.Queue,
+	surface_config:   wgpu.SurfaceConfiguration,
+	frame:            Frame,
+	unlit_pipeline:   wgpu.RenderPipeline,
+	unlit_vertices:   GpuBuffer,
+	indices:          GpuBuffer,
+	camera_uniform:   GpuBuffer,
+	models:           GpuBuffer,
+	frame_layout:     wgpu.BindGroupLayout,
+	frame_bind_group: wgpu.BindGroup,
+	// Staging for models, indexed by entity id and uploaded whole each frame.
+	model_matrices:   [MAX_ENTITIES]Mat4,
+	meshes:           MeshStorage,
 }
 
 /// Allocates the app with a 100MB world arena and a world living on it, and opens the window.
@@ -37,8 +43,9 @@ new_app :: proc() -> ^App {
 	}
 	app.world = world_create(virtual.arena_allocator(&app.world_arena))
 	create_window(app)
-	create_unlit_pipeline(app)
 	create_buffers(app)
+	create_frame_bind_group(app)
+	create_unlit_pipeline(app)
 	return app
 }
 
@@ -47,6 +54,8 @@ delete_app :: proc(app: ^App) {
 	delete_mesh_storage(&app.meshes)
 	delete_buffers(app)
 	wgpu.RenderPipelineRelease(app.unlit_pipeline)
+	wgpu.BindGroupRelease(app.frame_bind_group)
+	wgpu.BindGroupLayoutRelease(app.frame_layout)
 	wgpu.QueueRelease(app.queue)
 	wgpu.DeviceRelease(app.device)
 	wgpu.AdapterRelease(app.adapter)

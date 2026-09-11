@@ -9,7 +9,12 @@ System :: proc(app: ^App)
 // RENDER_SYSTEMS entry in order.
 
 UPDATE_SYSTEMS :: [?]System{set_delta_time, upload_drawables_system}
-RENDER_SYSTEMS :: [?]System{start_render_pass_system, draw_render_system, end_render_pass_system}
+RENDER_SYSTEMS :: [?]System {
+	upload_frame_uniforms_system,
+	start_render_pass_system,
+	draw_render_system,
+	end_render_pass_system,
+}
 
 /// Writes the nanoseconds elapsed since the last call into world.delta_time.
 set_delta_time :: proc(app: ^App) {
