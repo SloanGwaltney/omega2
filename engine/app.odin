@@ -22,6 +22,7 @@ App :: struct {
 	device:         wgpu.Device,
 	queue:          wgpu.Queue,
 	surface_config: wgpu.SurfaceConfiguration,
+	frame:          Frame,
 }
 
 /// Allocates the app with a 100MB world arena and a world living on it, and opens the window.
