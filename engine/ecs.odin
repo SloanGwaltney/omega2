@@ -25,12 +25,14 @@ Pool :: struct($T: typeid) {
 	has:  [MAX_ENTITIES]bool,
 }
 
-/// Owns every entity and component pool. Too large for the stack; heap
-/// allocate it.
+// Owns every entity and component pool. Too large for the stack; heap
+// allocate it.
 World :: struct {
-	alive:     [MAX_ENTITIES]bool,
-	count:     u32,
-	transform: Pool(Transform),
+	alive:      [MAX_ENTITIES]bool,
+	count:      u32,
+	// Nanoseconds elapsed since the previous frame.
+	delta_time: u64,
+	transform:  Pool(Transform),
 }
 
 /// Allocates a zeroed world.

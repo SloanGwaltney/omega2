@@ -58,6 +58,13 @@ run_app :: proc(app: ^App) {
 				return
 			}
 		}
+
+		for system in UPDATE_SYSTEMS {
+			system(app)
+		}
+		for system in RENDER_SYSTEMS {
+			system(app)
+		}
 	}
 }
 
