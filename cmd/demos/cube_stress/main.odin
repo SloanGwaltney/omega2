@@ -14,6 +14,10 @@ CAMERA_Z :: 60
 FOV_Y :: math.PI / 3
 SPAWN_PER_SECOND :: 100
 MAX_CUBES :: 9000
+// Radians per second each cube spins on x and y.
+SPIN_X :: 0.8
+SPIN_Y :: 1.3
+
 // World space depth range cubes are scattered over, in front of the camera.
 NEAR_Z :: 20
 FAR_Z :: -40
@@ -64,7 +68,23 @@ demo_update :: proc(app: ^engine.App) {
 		spawn_debt -= 1
 		spawned += 1
 	}
+	spin_cubes(app, f32(dt))
 	fmt.printfln("fps %.0f cubes %d", dt > 0 ? 1 / dt : 0, spawned)
+}
+
+// Spins every cube, so the transforms are rewritten every frame rather than
+// sitting still after they are spawned.
+spin_cubes :: proc(app: ^engine.App, dt: f32) {
+	spin := linalg.quaternion_from_euler_angles_f32(SPIN_X * dt, SPIN_Y * dt, 0, .XYZ)
+	w := app.world
+	for i in 0 ..< w.count {
+		e := engine.Entity(i)
+		if engine.pool_get(&w.drawable, e) == nil {
+			continue
+		}
+		transform := engine.pool_get(&w.transform, e)
+		transform.rot = spin * transform.rot
+	}
 }
 
 // Creates a cube at a random position inside the camera frustum with a random
