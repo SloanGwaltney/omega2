@@ -30,6 +30,7 @@ World :: struct {
 	camera:          Pool(Camera),
 	drawable_upload: Pool(DrawableUpload),
 	drawable:        Pool(Drawable),
+	input:           Pool(InputValues),
 }
 
 /// Allocates a zeroed world.
@@ -58,6 +59,7 @@ entity_destroy :: proc(w: ^World, e: Entity) {
 	pool_remove(&w.camera, e)
 	pool_remove(&w.drawable_upload, e)
 	pool_remove(&w.drawable, e)
+	pool_remove(&w.input, e)
 }
 
 entity_alive :: proc(w: ^World, e: Entity) -> bool {

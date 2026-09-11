@@ -8,7 +8,7 @@ System :: proc(app: ^App)
 // run_app runs every UPDATE_SYSTEMS entry in order, then every
 // RENDER_SYSTEMS entry in order.
 
-UPDATE_SYSTEMS :: [?]System{set_delta_time, upload_drawables_system}
+UPDATE_SYSTEMS :: [?]System{set_delta_time, sample_input_system, upload_drawables_system}
 RENDER_SYSTEMS :: [?]System {
 	upload_frame_uniforms_system,
 	start_render_pass_system,
