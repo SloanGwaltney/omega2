@@ -23,6 +23,7 @@ App :: struct {
 	queue:          wgpu.Queue,
 	surface_config: wgpu.SurfaceConfiguration,
 	frame:          Frame,
+	unlit_pipeline: wgpu.RenderPipeline,
 }
 
 /// Allocates the app with a 100MB world arena and a world living on it, and opens the window.
@@ -33,11 +34,13 @@ new_app :: proc() -> ^App {
 	}
 	app.world = world_create(virtual.arena_allocator(&app.world_arena))
 	create_window(app)
+	create_unlit_pipeline(app)
 	return app
 }
 
 /// Releases the world arena and everything on it, the window and the wgpu handles.
 delete_app :: proc(app: ^App) {
+	wgpu.RenderPipelineRelease(app.unlit_pipeline)
 	wgpu.QueueRelease(app.queue)
 	wgpu.DeviceRelease(app.device)
 	wgpu.AdapterRelease(app.adapter)

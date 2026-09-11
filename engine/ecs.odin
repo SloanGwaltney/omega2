@@ -13,12 +13,6 @@ MAX_ENTITIES :: 10_000
 
 Entity :: distinct u32
 
-Vec3 :: [3]f32
-
-Transform :: struct {
-	pos: Vec3,
-}
-
 /// Storage for a single component type, indexed by entity id.
 Pool :: struct($T: typeid) {
 	data: [MAX_ENTITIES]T,
