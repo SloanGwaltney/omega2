@@ -26,6 +26,7 @@ App :: struct {
 	unlit_pipeline: wgpu.RenderPipeline,
 	unlit_vertices: GpuBuffer,
 	indices:        GpuBuffer,
+	meshes:         MeshStorage,
 }
 
 /// Allocates the app with a 100MB world arena and a world living on it, and opens the window.
@@ -43,6 +44,7 @@ new_app :: proc() -> ^App {
 
 /// Releases the world arena and everything on it, the window and the wgpu handles.
 delete_app :: proc(app: ^App) {
+	delete_mesh_storage(&app.meshes)
 	delete_buffers(app)
 	wgpu.RenderPipelineRelease(app.unlit_pipeline)
 	wgpu.QueueRelease(app.queue)

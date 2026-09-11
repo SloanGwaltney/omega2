@@ -22,11 +22,13 @@ Pool :: struct($T: typeid) {
 // Owns every entity and component pool. Too large for the stack; heap
 // allocate it.
 World :: struct {
-	alive:      [MAX_ENTITIES]bool,
-	count:      u32,
+	alive:           [MAX_ENTITIES]bool,
+	count:           u32,
 	// Nanoseconds elapsed since the previous frame.
-	delta_time: u64,
-	transform:  Pool(Transform),
+	delta_time:      u64,
+	transform:       Pool(Transform),
+	drawable_upload: Pool(DrawableUpload),
+	drawable:        Pool(Drawable),
 }
 
 /// Allocates a zeroed world.
@@ -52,6 +54,8 @@ entity_create :: proc(w: ^World) -> Entity {
 entity_destroy :: proc(w: ^World, e: Entity) {
 	w.alive[e] = false
 	pool_remove(&w.transform, e)
+	pool_remove(&w.drawable_upload, e)
+	pool_remove(&w.drawable, e)
 }
 
 entity_alive :: proc(w: ^World, e: Entity) -> bool {

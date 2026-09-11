@@ -39,8 +39,33 @@ start_render_pass_system :: proc(app: ^App) {
 	)
 }
 
-// Records draw calls into the current pass. Nothing to draw until there is a pipeline.
+// Draws every entity with a Drawable from the shared gpu buffers.
 draw_render_system :: proc(app: ^App) {
+	w := app.world
+	pass := app.frame.pass
+	for i in 0 ..< w.count {
+		drawable := pool_get(&w.drawable, Entity(i))
+		if drawable == nil {
+			continue
+		}
+		layout := pipeline_layout(drawable.pipeline)
+		wgpu.RenderPassEncoderSetPipeline(pass, pipeline_handle(app, drawable.pipeline))
+		wgpu.RenderPassEncoderSetVertexBuffer(
+			pass,
+			0,
+			vertex_buffer(app, layout).handle,
+			drawable.offsets.vertex,
+			wgpu.WHOLE_SIZE,
+		)
+		wgpu.RenderPassEncoderSetIndexBuffer(
+			pass,
+			app.indices.handle,
+			INDEX_FORMAT,
+			drawable.offsets.index,
+			wgpu.WHOLE_SIZE,
+		)
+		wgpu.RenderPassEncoderDrawIndexed(pass, drawable.index_count, 1, 0, 0, 0)
+	}
 }
 
 // Ends the pass, submits the frame, presents it and releases the frame handles.

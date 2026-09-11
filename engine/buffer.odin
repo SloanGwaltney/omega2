@@ -31,6 +31,7 @@ delete_buffers :: proc(app: ^App) {
 
 // Uploads data at the current bump offset and returns that offset in bytes.
 // Panics when the buffer is full.
+@(private)
 gpu_buffer_push :: proc(app: ^App, buf: ^GpuBuffer, data: []$T) -> u64 {
 	size := u64(len(data) * size_of(T))
 	offset := buf.used
@@ -42,6 +43,7 @@ gpu_buffer_push :: proc(app: ^App, buf: ^GpuBuffer, data: []$T) -> u64 {
 	return offset
 }
 
+@(private)
 gpu_buffer_reset :: proc(buf: ^GpuBuffer) {
 	buf.used = 0
 }

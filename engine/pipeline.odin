@@ -11,6 +11,15 @@ Vertex :: struct {
 	uv:    Vec2,
 }
 
+// The wgpu pipeline backing a Pipeline value.
+pipeline_handle :: proc(app: ^App, pipeline: Pipeline) -> wgpu.RenderPipeline {
+	switch pipeline {
+	case .Unlit:
+		return app.unlit_pipeline
+	}
+	panic("unknown pipeline")
+}
+
 // Builds the unlit pipeline: one interleaved vertex buffer, no bind groups,
 // triangle list drawn with an index buffer. The index format is supplied at
 // draw time, not here, because the topology is not a strip.
