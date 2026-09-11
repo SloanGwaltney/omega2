@@ -37,6 +37,9 @@ App :: struct {
 	// Draw batches rebuilt each frame from the drawables.
 	batches:          [MAX_BATCHES]Batch,
 	batch_count:      int,
+	// This frame's drawable entities and the batch each landed in, so the
+	// second pass does not rescan the pools or the batch list.
+	drawn:            [MAX_ENTITIES]DrawEntry,
 	meshes:           MeshStorage,
 	// Called once per frame before the engine systems, if set.
 	user_update:      System,

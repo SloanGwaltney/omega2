@@ -25,9 +25,32 @@ transform_identity :: proc() -> Transform {
 	return {pos = {0, 0, 0}, rot = QUAT_IDENTITY, scale = {1, 1, 1}}
 }
 
-// The model matrix for a transform.
-transform_matrix :: proc(t: Transform) -> Mat4 {
-	return linalg.matrix4_from_trs_f32(t.pos, t.rot, t.scale)
+// The model matrix for a transform. Builds T * R * S directly; the linalg
+// version composes three matrices and multiplies them, which is two full 4x4
+// multiplies of mostly zeroes.
+transform_matrix :: proc(t: Transform) -> (m: Mat4) {
+	q := t.rot
+	xx, yy, zz := q.x * q.x, q.y * q.y, q.z * q.z
+	xy, xz, yz := q.x * q.y, q.x * q.z, q.y * q.z
+	wx, wy, wz := q.w * q.x, q.w * q.y, q.w * q.z
+
+	m[0, 0] = (1 - 2 * (yy + zz)) * t.scale.x
+	m[1, 0] = (2 * (xy + wz)) * t.scale.x
+	m[2, 0] = (2 * (xz - wy)) * t.scale.x
+
+	m[0, 1] = (2 * (xy - wz)) * t.scale.y
+	m[1, 1] = (1 - 2 * (xx + zz)) * t.scale.y
+	m[2, 1] = (2 * (yz + wx)) * t.scale.y
+
+	m[0, 2] = (2 * (xz + wy)) * t.scale.z
+	m[1, 2] = (2 * (yz - wx)) * t.scale.z
+	m[2, 2] = (1 - 2 * (xx + yy)) * t.scale.z
+
+	m[0, 3] = t.pos.x
+	m[1, 3] = t.pos.y
+	m[2, 3] = t.pos.z
+	m[3, 3] = 1
+	return
 }
 
 // Right handed view matrix for a camera at eye looking at target.

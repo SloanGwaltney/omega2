@@ -89,21 +89,33 @@ Batch :: struct {
 
 MAX_BATCHES :: 64
 
+// An entity to draw and the index of the batch it belongs to.
+DrawEntry :: struct {
+	entity: Entity,
+	batch:  u32,
+}
+
 // Writes the camera matrix to the gpu and builds this frame's batches, packing
 // the model matrices of each batch's entities contiguously into the model
 // buffer. An entity without a Transform gets the identity.
-upload_frame_uniforms_system :: proc(app: ^App) {
+upload_frame_uniforms_system :: proc(app: ^App) #no_bounds_check {
+	zone_begin(.FrameUniforms)
 	w := app.world
 	view_proj := [1]Mat4{camera_view_proj(app)}
 	gpu_buffer_write(app, &app.camera_uniform, view_proj[:])
 
 	app.batch_count = 0
+	drawn: u32
 	for i in 0 ..< w.count {
-		drawable := pool_get(&w.drawable, Entity(i))
+		e := Entity(i)
+		drawable := pool_get(&w.drawable, e)
 		if drawable == nil {
 			continue
 		}
-		batch_for(app, drawable^).count += 1
+		b := batch_for(app, drawable)
+		app.batches[b].count += 1
+		app.drawn[drawn] = {entity = e, batch = b}
+		drawn += 1
 	}
 
 	next: u32
@@ -114,27 +126,26 @@ upload_frame_uniforms_system :: proc(app: ^App) {
 		batch.count = 0
 	}
 
-	for i in 0 ..< w.count {
-		e := Entity(i)
-		drawable := pool_get(&w.drawable, e)
-		if drawable == nil {
-			continue
-		}
-		batch := batch_for(app, drawable^)
-		transform := pool_get(&w.transform, e)
+	for entry in app.drawn[:drawn] {
+		batch := &app.batches[entry.batch]
+		transform := pool_get(&w.transform, entry.entity)
 		app.model_matrices[batch.first_instance + batch.count] =
 			transform == nil ? MAT4_IDENTITY : transform_matrix(transform^)
 		batch.count += 1
 	}
-	gpu_buffer_write(app, &app.models, app.model_matrices[:next])
+	{
+		zone_begin(.ModelUpload)
+		gpu_buffer_write(app, &app.models, app.model_matrices[:next])
+	}
 }
 
-// The batch matching drawable, appended if this frame has not seen it yet.
+// Index of the batch matching drawable, appended if this frame has not seen
+// it yet.
 @(private)
-batch_for :: proc(app: ^App, drawable: Drawable) -> ^Batch {
-	for &batch in app.batches[:app.batch_count] {
+batch_for :: proc(app: ^App, drawable: ^Drawable) -> u32 {
+	for batch, i in app.batches[:app.batch_count] {
 		if batch.pipeline == drawable.pipeline && batch.offsets == drawable.offsets {
-			return &batch
+			return u32(i)
 		}
 	}
 	assert(app.batch_count < MAX_BATCHES, "out of draw batches")
@@ -144,7 +155,7 @@ batch_for :: proc(app: ^App, drawable: Drawable) -> ^Batch {
 		index_count = drawable.index_count,
 	}
 	app.batch_count += 1
-	return &app.batches[app.batch_count - 1]
+	return u32(app.batch_count - 1)
 }
 
 // Draws every batch, one instanced draw each, with the pipeline and its vertex
