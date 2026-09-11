@@ -3,6 +3,7 @@ package engine
 import "vendor:wgpu"
 
 CLEAR_COLOR :: wgpu.Color{0.1, 0.1, 0.12, 1.0}
+DEPTH_FORMAT :: wgpu.TextureFormat.Depth32Float
 
 // wgpu handles that live only for the current frame. Created by
 // start_render_pass_system and released by end_render_pass_system.
@@ -13,7 +14,34 @@ Frame :: struct {
 	pass:            wgpu.RenderPassEncoder,
 }
 
-// Acquires the swapchain texture and begins a render pass that clears to CLEAR_COLOR.
+// Creates the depth texture at the current surface size. Must be recreated
+// whenever the surface is resized.
+create_depth_texture :: proc(app: ^App) {
+	app.depth_texture = wgpu.DeviceCreateTexture(
+		app.device,
+		&{
+			label = "depth",
+			usage = {.RenderAttachment},
+			dimension = ._2D,
+			size = {app.surface_config.width, app.surface_config.height, 1},
+			format = DEPTH_FORMAT,
+			mipLevelCount = 1,
+			sampleCount = 1,
+		},
+	)
+	if app.depth_texture == nil {
+		panic("failed to create depth texture")
+	}
+	app.depth_view = wgpu.TextureCreateView(app.depth_texture)
+}
+
+delete_depth_texture :: proc(app: ^App) {
+	wgpu.TextureViewRelease(app.depth_view)
+	wgpu.TextureRelease(app.depth_texture)
+}
+
+// Acquires the swapchain texture and begins a render pass that clears the
+// color target to CLEAR_COLOR and the depth target to the far plane.
 start_render_pass_system :: proc(app: ^App) {
 	frame := &app.frame
 	frame.surface_texture = wgpu.SurfaceGetCurrentTexture(app.surface)
@@ -33,9 +61,19 @@ start_render_pass_system :: proc(app: ^App) {
 		clearValue = CLEAR_COLOR,
 		depthSlice = wgpu.DEPTH_SLICE_UNDEFINED,
 	}
+	depth_attachment := wgpu.RenderPassDepthStencilAttachment {
+		view            = app.depth_view,
+		depthLoadOp     = .Clear,
+		depthStoreOp    = .Store,
+		depthClearValue = 1.0,
+	}
 	frame.pass = wgpu.CommandEncoderBeginRenderPass(
 		frame.encoder,
-		&{colorAttachmentCount = 1, colorAttachments = &attachment},
+		&{
+			colorAttachmentCount = 1,
+			colorAttachments = &attachment,
+			depthStencilAttachment = &depth_attachment,
+		},
 	)
 }
 

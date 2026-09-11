@@ -79,6 +79,11 @@ create_unlit_pipeline :: proc(app: ^App) {
 		attributeCount = len(attributes),
 		attributes     = &attributes[0],
 	}
+	depth_stencil := wgpu.DepthStencilState {
+		format            = DEPTH_FORMAT,
+		depthWriteEnabled = .True,
+		depthCompare      = .Less,
+	}
 	target := wgpu.ColorTargetState {
 		format    = app.surface_config.format,
 		writeMask = wgpu.ColorWriteMaskFlags_All,
@@ -102,6 +107,7 @@ create_unlit_pipeline :: proc(app: ^App) {
 				buffers = &layout,
 			},
 			primitive = {topology = .TriangleList, frontFace = .CCW, cullMode = .Back},
+			depthStencil = &depth_stencil,
 			multisample = {count = 1, mask = ~u32(0)},
 			fragment = &fragment,
 		},

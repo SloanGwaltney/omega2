@@ -23,6 +23,8 @@ App :: struct {
 	queue:            wgpu.Queue,
 	surface_config:   wgpu.SurfaceConfiguration,
 	frame:            Frame,
+	depth_texture:    wgpu.Texture,
+	depth_view:       wgpu.TextureView,
 	unlit_pipeline:   wgpu.RenderPipeline,
 	unlit_vertices:   GpuBuffer,
 	indices:          GpuBuffer,
@@ -43,6 +45,7 @@ new_app :: proc() -> ^App {
 	}
 	app.world = world_create(virtual.arena_allocator(&app.world_arena))
 	create_window(app)
+	create_depth_texture(app)
 	create_buffers(app)
 	create_frame_bind_group(app)
 	create_unlit_pipeline(app)
@@ -52,6 +55,7 @@ new_app :: proc() -> ^App {
 /// Releases the world arena and everything on it, the window and the wgpu handles.
 delete_app :: proc(app: ^App) {
 	delete_mesh_storage(&app.meshes)
+	delete_depth_texture(app)
 	delete_buffers(app)
 	wgpu.RenderPipelineRelease(app.unlit_pipeline)
 	wgpu.BindGroupRelease(app.frame_bind_group)
@@ -75,6 +79,8 @@ run_app :: proc(app: ^App) {
 			#partial switch event.type {
 			case .QUIT:
 				return
+			case .WINDOW_PIXEL_SIZE_CHANGED:
+				resize_surface(app, u32(event.window.data1), u32(event.window.data2))
 			}
 		}
 
@@ -85,6 +91,20 @@ run_app :: proc(app: ^App) {
 			system(app)
 		}
 	}
+}
+
+/// Reconfigures the surface and rebuilds the depth texture at the new size.
+/// A zero sized window is skipped, because wgpu rejects a zero sized surface.
+@(private)
+resize_surface :: proc(app: ^App, width, height: u32) {
+	if width == 0 || height == 0 {
+		return
+	}
+	app.surface_config.width = width
+	app.surface_config.height = height
+	wgpu.SurfaceConfigure(app.surface, &app.surface_config)
+	delete_depth_texture(app)
+	create_depth_texture(app)
 }
 
 /// Opens an SDL3 window and stores the wgpu surface, adapter, device and queue on the app.
