@@ -22,6 +22,15 @@ pipeline_layout :: proc(pipeline: Pipeline) -> VertexLayout {
 	panic("unknown pipeline")
 }
 
+// Size of one vertex in a layout, used to turn byte offsets into vertex indices.
+layout_stride :: proc(layout: VertexLayout) -> u64 {
+	switch layout {
+	case .Unlit:
+		return size_of(Vertex)
+	}
+	panic("unknown vertex layout")
+}
+
 // Where a mesh's data landed in the shared gpu buffers, in bytes.
 BufferOffsets :: struct {
 	vertex: u64,

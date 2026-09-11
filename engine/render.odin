@@ -39,32 +39,42 @@ start_render_pass_system :: proc(app: ^App) {
 	)
 }
 
-// Draws every entity with a Drawable from the shared gpu buffers.
+// Draws every entity with a Drawable. Grouped by pipeline so the pipeline and
+// its vertex buffer are bound once per group; the shared index buffer is bound
+// once for the frame and meshes are reached through firstIndex and baseVertex.
 draw_render_system :: proc(app: ^App) {
 	w := app.world
 	pass := app.frame.pass
-	for i in 0 ..< w.count {
-		drawable := pool_get(&w.drawable, Entity(i))
-		if drawable == nil {
-			continue
+	wgpu.RenderPassEncoderSetIndexBuffer(pass, app.indices.handle, INDEX_FORMAT, 0, wgpu.WHOLE_SIZE)
+
+	for pipeline in Pipeline {
+		bound := false
+		stride := layout_stride(pipeline_layout(pipeline))
+		for i in 0 ..< w.count {
+			drawable := pool_get(&w.drawable, Entity(i))
+			if drawable == nil || drawable.pipeline != pipeline {
+				continue
+			}
+			if !bound {
+				wgpu.RenderPassEncoderSetPipeline(pass, pipeline_handle(app, pipeline))
+				wgpu.RenderPassEncoderSetVertexBuffer(
+					pass,
+					0,
+					vertex_buffer(app, pipeline_layout(pipeline)).handle,
+					0,
+					wgpu.WHOLE_SIZE,
+				)
+				bound = true
+			}
+			wgpu.RenderPassEncoderDrawIndexed(
+				pass,
+				drawable.index_count,
+				1,
+				u32(drawable.offsets.index / size_of(Index)),
+				i32(drawable.offsets.vertex / stride),
+				0,
+			)
 		}
-		layout := pipeline_layout(drawable.pipeline)
-		wgpu.RenderPassEncoderSetPipeline(pass, pipeline_handle(app, drawable.pipeline))
-		wgpu.RenderPassEncoderSetVertexBuffer(
-			pass,
-			0,
-			vertex_buffer(app, layout).handle,
-			drawable.offsets.vertex,
-			wgpu.WHOLE_SIZE,
-		)
-		wgpu.RenderPassEncoderSetIndexBuffer(
-			pass,
-			app.indices.handle,
-			INDEX_FORMAT,
-			drawable.offsets.index,
-			wgpu.WHOLE_SIZE,
-		)
-		wgpu.RenderPassEncoderDrawIndexed(pass, drawable.index_count, 1, 0, 0, 0)
 	}
 }
 
