@@ -14,6 +14,7 @@ RENDER_SYSTEMS :: [?]System {
 	start_render_pass_system,
 	draw_render_system,
 	end_render_pass_system,
+	profile_report_system,
 }
 
 /// Writes the nanoseconds elapsed since the last call into world.delta_time.
