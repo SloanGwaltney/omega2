@@ -130,6 +130,10 @@ create_window :: proc(app: ^App) {
 		panic("failed to create window")
 	}
 
+	if !sdl3.SetWindowRelativeMouseMode(app.window, true) {
+		panic("failed to capture the mouse")
+	}
+
 	app.instance = wgpu.CreateInstance()
 	if app.instance == nil {
 		panic("failed to create wgpu instance")

@@ -1,5 +1,5 @@
-// Casino scratch scene: a first person camera that walks the xz plane with
-// WASD over a flat floor.
+// Casino scratch scene: a first person camera that aims with the mouse and
+// walks the xz plane with WASD over a flat floor.
 package main
 
 import "../../../engine"
@@ -8,6 +8,7 @@ import "core:slice"
 
 EYE_HEIGHT :: 1.7
 MOVE_SPEED :: 25.0
+MOUSE_SENSITIVITY :: 0.002
 FLOOR_HALF :: 50.0
 FLOOR_COLOR :: engine.Vec4{0.15, 0.35, 0.2, 1}
 
@@ -35,6 +36,11 @@ main :: proc() {
 	engine.pool_add(&app.world.input, player, engine.InputValues{})
 	engine.pool_add(&app.world.player, player, engine.Player{})
 	engine.pool_add(&app.world.movement, player, engine.Movement{speed = MOVE_SPEED})
+	engine.pool_add(
+		&app.world.mouse_look,
+		player,
+		engine.MouseLook{sensitivity = MOUSE_SENSITIVITY},
+	)
 
 	floor := engine.entity_create(app.world)
 	engine.pool_add(&app.world.transform, floor, engine.transform_identity())

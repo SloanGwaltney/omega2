@@ -33,6 +33,7 @@ World :: struct {
 	input:           Pool(InputValues),
 	player:          Pool(Player),
 	movement:        Pool(Movement),
+	mouse_look:      Pool(MouseLook),
 }
 
 /// Allocates a zeroed world.
@@ -64,6 +65,7 @@ entity_destroy :: proc(w: ^World, e: Entity) {
 	pool_remove(&w.input, e)
 	pool_remove(&w.player, e)
 	pool_remove(&w.movement, e)
+	pool_remove(&w.mouse_look, e)
 }
 
 entity_alive :: proc(w: ^World, e: Entity) -> bool {
