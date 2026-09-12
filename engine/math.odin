@@ -70,3 +70,15 @@ perspective :: proc(fov_y, aspect, near, far: f32) -> Mat4 {
 	m[3, 2] = -1
 	return m
 }
+
+// Orthographic projection mapping pixels to clip space with the origin at the
+// top left, y growing downwards and depth pinned to 0.
+ortho_screen :: proc(width, height: f32) -> Mat4 {
+	m: Mat4
+	m[0, 0] = 2 / width
+	m[0, 3] = -1
+	m[1, 1] = -2 / height
+	m[1, 3] = 1
+	m[3, 3] = 1
+	return m
+}

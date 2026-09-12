@@ -26,9 +26,12 @@ App :: struct {
 	depth_texture:    wgpu.Texture,
 	depth_view:       wgpu.TextureView,
 	unlit_pipeline:   wgpu.RenderPipeline,
+	ui_pipeline:      wgpu.RenderPipeline,
 	unlit_vertices:   GpuBuffer,
+	ui_vertices:      GpuBuffer,
 	indices:          GpuBuffer,
 	camera_uniform:   GpuBuffer,
+	ui_uniform:       GpuBuffer,
 	models:           GpuBuffer,
 	frame_layout:     wgpu.BindGroupLayout,
 	frame_bind_group: wgpu.BindGroup,
@@ -57,6 +60,7 @@ new_app :: proc() -> ^App {
 	create_buffers(app)
 	create_frame_bind_group(app)
 	create_unlit_pipeline(app)
+	create_ui_pipeline(app)
 	return app
 }
 
@@ -66,6 +70,7 @@ delete_app :: proc(app: ^App) {
 	delete_depth_texture(app)
 	delete_buffers(app)
 	wgpu.RenderPipelineRelease(app.unlit_pipeline)
+	wgpu.RenderPipelineRelease(app.ui_pipeline)
 	wgpu.BindGroupRelease(app.frame_bind_group)
 	wgpu.BindGroupLayoutRelease(app.frame_layout)
 	wgpu.QueueRelease(app.queue)

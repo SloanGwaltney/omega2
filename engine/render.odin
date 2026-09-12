@@ -95,7 +95,7 @@ DrawEntry :: struct {
 	batch:  u32,
 }
 
-// Writes the camera matrix to the gpu and builds this frame's batches, packing
+// Writes the camera and ui matrices to the gpu and builds this frame's batches, packing
 // the model matrices of each batch's entities contiguously into the model
 // buffer. An entity without a Transform gets the identity.
 upload_frame_uniforms_system :: proc(app: ^App) #no_bounds_check {
@@ -103,6 +103,8 @@ upload_frame_uniforms_system :: proc(app: ^App) #no_bounds_check {
 	w := app.world
 	view_proj := [1]Mat4{camera_view_proj(app)}
 	gpu_buffer_write(app, &app.camera_uniform, view_proj[:])
+	ui_proj := [1]Mat4{ortho_screen(f32(app.surface_config.width), f32(app.surface_config.height))}
+	gpu_buffer_write(app, &app.ui_uniform, ui_proj[:])
 
 	app.batch_count = 0
 	drawn: u32

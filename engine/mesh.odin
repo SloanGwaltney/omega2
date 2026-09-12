@@ -6,11 +6,13 @@ import "core:hash"
 // lands in. Many pipelines can share one layout.
 VertexLayout :: enum {
 	Unlit,
+	Ui,
 }
 
 // Draw state a mesh is rendered with.
 Pipeline :: enum {
 	Unlit,
+	Ui,
 }
 
 // The layout a pipeline reads its vertices in.
@@ -18,6 +20,8 @@ pipeline_layout :: proc(pipeline: Pipeline) -> VertexLayout {
 	switch pipeline {
 	case .Unlit:
 		return .Unlit
+	case .Ui:
+		return .Ui
 	}
 	panic("unknown pipeline")
 }
@@ -27,6 +31,8 @@ layout_stride :: proc(layout: VertexLayout) -> u64 {
 	switch layout {
 	case .Unlit:
 		return size_of(Vertex)
+	case .Ui:
+		return size_of(UiVertex)
 	}
 	panic("unknown vertex layout")
 }
@@ -84,6 +90,8 @@ vertex_buffer :: proc(app: ^App, layout: VertexLayout) -> ^GpuBuffer {
 	switch layout {
 	case .Unlit:
 		return &app.unlit_vertices
+	case .Ui:
+		return &app.ui_vertices
 	}
 	panic("unknown vertex layout")
 }
