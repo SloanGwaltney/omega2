@@ -29,6 +29,7 @@ App :: struct {
 	ui_pipeline:      wgpu.RenderPipeline,
 	unlit_vertices:   GpuBuffer,
 	ui_vertices:      GpuBuffer,
+	ui_indices:       GpuBuffer,
 	indices:          GpuBuffer,
 	camera_uniform:   GpuBuffer,
 	ui_uniform:       GpuBuffer,
@@ -44,6 +45,10 @@ App :: struct {
 	// second pass does not rescan the pools or the batch list.
 	drawn:            [MAX_ENTITIES]DrawEntry,
 	meshes:           MeshStorage,
+	// This frame's ui geometry, rebuilt by ui_system.
+	ui:               Ui,
+	// Called by ui_system to emit this frame's ui, if set.
+	ui_callback:      UiCallback,
 	// Called once per frame before the engine systems, if set.
 	user_update:      System,
 }

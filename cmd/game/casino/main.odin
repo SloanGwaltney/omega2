@@ -11,6 +11,9 @@ MOVE_SPEED :: 25.0
 MOUSE_SENSITIVITY :: 0.002
 FLOOR_HALF :: 50.0
 FLOOR_COLOR :: engine.Vec4{0.15, 0.35, 0.2, 1}
+CROSSHAIR_LENGTH :: 18.0
+CROSSHAIR_THICKNESS :: 2.0
+CROSSHAIR_COLOR :: engine.Vec4{1, 1, 1, 0.75}
 
 FLOOR_VERTICES := [?]engine.Vertex {
 	{pos = {-FLOOR_HALF, 0, FLOOR_HALF}, color = FLOOR_COLOR},
@@ -19,6 +22,24 @@ FLOOR_VERTICES := [?]engine.Vertex {
 	{pos = {-FLOOR_HALF, 0, -FLOOR_HALF}, color = FLOOR_COLOR},
 }
 FLOOR_INDICES := [?]engine.Index{0, 1, 2, 0, 2, 3}
+
+// Draws a centred crosshair.
+casino_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
+	w := f32(app.surface_config.width)
+	h := f32(app.surface_config.height)
+	cx := w / 2 - CROSSHAIR_LENGTH / 2
+	cy := h / 2 - CROSSHAIR_LENGTH / 2
+	engine.ui_rect(
+		ui,
+		{cx, h / 2 - CROSSHAIR_THICKNESS / 2, CROSSHAIR_LENGTH, CROSSHAIR_THICKNESS},
+		CROSSHAIR_COLOR,
+	)
+	engine.ui_rect(
+		ui,
+		{w / 2 - CROSSHAIR_THICKNESS / 2, cy, CROSSHAIR_THICKNESS, CROSSHAIR_LENGTH},
+		CROSSHAIR_COLOR,
+	)
+}
 
 main :: proc() {
 	app := engine.new_app()
@@ -53,6 +74,8 @@ main :: proc() {
 			indices = FLOOR_INDICES[:],
 		},
 	)
+
+	app.ui_callback = casino_ui
 
 	engine.run_app(app)
 }

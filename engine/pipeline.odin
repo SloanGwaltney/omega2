@@ -25,8 +25,6 @@ pipeline_handle :: proc(app: ^App, pipeline: Pipeline) -> wgpu.RenderPipeline {
 	switch pipeline {
 	case .Unlit:
 		return app.unlit_pipeline
-	case .Ui:
-		return app.ui_pipeline
 	}
 	panic("unknown pipeline")
 }

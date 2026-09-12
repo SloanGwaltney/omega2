@@ -10,15 +10,13 @@ struct VertexOut {
 	@location(1) uv: vec2<f32>,
 }
 
-// Model matrices packed in draw order, reached through the draw's firstInstance.
-@group(0) @binding(1) var<storage, read> models: array<mat4x4<f32>>;
 // Pixels to clip space, rebuilt whenever the surface is resized.
 @group(0) @binding(2) var<uniform> ui_proj: mat4x4<f32>;
 
 @vertex
-fn vs_main(in: VertexIn, @builtin(instance_index) instance: u32) -> VertexOut {
+fn vs_main(in: VertexIn) -> VertexOut {
 	var out: VertexOut;
-	out.clip_pos = ui_proj * models[instance] * vec4<f32>(in.pos, 1.0);
+	out.clip_pos = ui_proj * vec4<f32>(in.pos, 1.0);
 	out.color = in.color;
 	out.uv = in.uv;
 	return out;
