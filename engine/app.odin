@@ -49,8 +49,11 @@ App :: struct {
 	ui:               Ui,
 	// Called by ui_system to emit this frame's ui, if set.
 	ui_callback:      UiCallback,
-	// Called once per frame before the engine systems, if set.
-	user_update:      System,
+	// This frame's raw device state, refilled by sample_input_system.
+	input:            Input,
+	// The game's systems, run each frame after PRE_SYSTEMS and before the
+	// engine's own. They get the whole app, engine components included.
+	user_systems:     []System,
 }
 
 /// Allocates the app with a 100MB world arena and a world living on it, and opens the window.
@@ -102,8 +105,11 @@ run_app :: proc(app: ^App) {
 			}
 		}
 
-		if app.user_update != nil {
-			app.user_update(app)
+		for system in PRE_SYSTEMS {
+			system(app)
+		}
+		for system in app.user_systems {
+			system(app)
 		}
 		for system in UPDATE_SYSTEMS {
 			system(app)

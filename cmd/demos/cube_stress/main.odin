@@ -54,9 +54,11 @@ main :: proc() {
 	engine.pool_add(&app.world.transform, camera, camera_transform)
 	engine.pool_add(&app.world.camera, camera, engine.Camera{fov_y = FOV_Y, near = 0.1, far = 200})
 
-	app.user_update = demo_update
+	app.user_systems = DEMO_SYSTEMS[:]
 	engine.run_app(app)
 }
+
+DEMO_SYSTEMS := [?]engine.System{demo_update}
 
 // Spawns SPAWN_PER_SECOND cubes a second until MAX_CUBES exist, and logs the
 // frame rate alongside the live cube count.

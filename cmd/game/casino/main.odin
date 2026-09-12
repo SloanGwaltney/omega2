@@ -45,6 +45,13 @@ main :: proc() {
 	app := engine.new_app()
 	defer engine.delete_app(app)
 
+	// Too large for the stack.
+	game := new(Game)
+	defer free(game)
+	app.world.user_ptr = game
+	app.world.on_destroy = game_on_destroy
+	app.user_systems = GAME_SYSTEMS[:]
+
 	player := engine.entity_create(app.world)
 	t := engine.transform_identity()
 	t.pos = {0, EYE_HEIGHT, 5}
@@ -54,14 +61,10 @@ main :: proc() {
 		player,
 		engine.Camera{fov_y = math.PI / 3, near = 0.1, far = 200},
 	)
-	engine.pool_add(&app.world.input, player, engine.InputValues{})
-	engine.pool_add(&app.world.player, player, engine.Player{})
-	engine.pool_add(&app.world.movement, player, engine.Movement{speed = MOVE_SPEED})
-	engine.pool_add(
-		&app.world.mouse_look,
-		player,
-		engine.MouseLook{sensitivity = MOUSE_SENSITIVITY},
-	)
+	engine.pool_add(&game.input, player, InputValues{})
+	engine.pool_add(&game.player, player, Player{})
+	engine.pool_add(&game.movement, player, Movement{speed = MOVE_SPEED})
+	engine.pool_add(&game.mouse_look, player, MouseLook{sensitivity = MOUSE_SENSITIVITY})
 
 	floor := engine.entity_create(app.world)
 	engine.pool_add(&app.world.transform, floor, engine.transform_identity())

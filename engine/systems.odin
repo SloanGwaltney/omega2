@@ -4,11 +4,12 @@ import "vendor:sdl3"
 
 System :: proc(app: ^App)
 
-// The split between the two lists is cosmetic grouping only; each frame
-// run_app runs every UPDATE_SYSTEMS entry in order, then every
-// RENDER_SYSTEMS entry in order.
+// Each frame run_app runs PRE_SYSTEMS, then the app's user_systems, then
+// UPDATE_SYSTEMS, then RENDER_SYSTEMS, every list in order. PRE_SYSTEMS is
+// everything a user system needs read ready: the frame's timing and input.
 
-UPDATE_SYSTEMS :: [?]System{set_delta_time, sample_input_system, player_look_system, player_move_system, upload_drawables_system, ui_system}
+PRE_SYSTEMS :: [?]System{set_delta_time, sample_input_system}
+UPDATE_SYSTEMS :: [?]System{upload_drawables_system, ui_system}
 RENDER_SYSTEMS :: [?]System {
 	upload_frame_uniforms_system,
 	start_render_pass_system,

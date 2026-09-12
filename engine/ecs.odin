@@ -30,10 +30,12 @@ World :: struct {
 	camera:          Pool(Camera),
 	drawable_upload: Pool(DrawableUpload),
 	drawable:        Pool(Drawable),
-	input:           Pool(InputValues),
-	player:          Pool(Player),
-	movement:        Pool(Movement),
-	mouse_look:      Pool(MouseLook),
+	// The game's own state, including any component pools it keys by Entity.
+	// Cast by user systems; the engine only hands it back.
+	user_ptr:        rawptr,
+	// Called by entity_destroy after the engine pools are cleared, so the
+	// game can drop the entity from its own pools.
+	on_destroy:      proc(w: ^World, e: Entity),
 }
 
 /// Allocates a zeroed world.
@@ -55,17 +57,17 @@ entity_create :: proc(w: ^World) -> Entity {
 	return e
 }
 
-/// Marks e dead and drops its components. Must clear every pool in World.
+/// Marks e dead and drops its components. Must clear every pool in World,
+/// then run on_destroy so the game clears its own.
 entity_destroy :: proc(w: ^World, e: Entity) {
 	w.alive[e] = false
 	pool_remove(&w.transform, e)
 	pool_remove(&w.camera, e)
 	pool_remove(&w.drawable_upload, e)
 	pool_remove(&w.drawable, e)
-	pool_remove(&w.input, e)
-	pool_remove(&w.player, e)
-	pool_remove(&w.movement, e)
-	pool_remove(&w.mouse_look, e)
+	if w.on_destroy != nil {
+		w.on_destroy(w, e)
+	}
 }
 
 entity_alive :: proc(w: ^World, e: Entity) -> bool {
