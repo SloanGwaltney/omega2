@@ -7,6 +7,7 @@ import "vendor:sdl3"
 
 MENU_BUTTON_WIDTH :: 240.0
 MENU_BUTTON_HEIGHT :: 56.0
+MENU_BUTTON_GAP :: 16.0
 
 // Opens or closes the menu on the frame escape goes down, and captures the
 // mouse to match.
@@ -24,7 +25,8 @@ menu_system :: proc(app: ^engine.App) {
 	menu_set_open(app, !g.menu_open)
 }
 
-// Draws the menu's buttons, closing it when resume is clicked.
+// Draws the menu's buttons: resume closes it, and start day begins the next
+// day while the clock is stopped.
 menu_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 	g := (^Game)(app.world.user_ptr)
 	if !g.menu_open {
@@ -36,7 +38,18 @@ menu_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 		MENU_BUTTON_WIDTH,
 		MENU_BUTTON_HEIGHT,
 	}
+	if !g.clock.running {
+		r.y -= (MENU_BUTTON_HEIGHT + MENU_BUTTON_GAP) / 2
+	}
 	if engine.ui_button(app, ui, r, .Large, "Resume") {
+		menu_set_open(app, false)
+	}
+	if g.clock.running {
+		return
+	}
+	r.y += MENU_BUTTON_HEIGHT + MENU_BUTTON_GAP
+	if engine.ui_button(app, ui, r, .Large, "Start Day") {
+		clock_start_day(g)
 		menu_set_open(app, false)
 	}
 }

@@ -17,6 +17,8 @@ Game :: struct {
 	interactor:    engine.Pool(Interactor),
 	interactable:  engine.Pool(Interactable),
 	slot_machine:  engine.Pool(SlotMachine),
+	// The day clock, shared by the whole game.
+	clock:         Clock,
 	// True while the pause menu is up, which frees the mouse and stops the
 	// player reading input.
 	menu_open:     bool,
@@ -35,6 +37,7 @@ Game :: struct {
 
 GAME_SYSTEMS := [?]engine.System {
 	menu_system,
+	clock_system,
 	player_input_system,
 	player_look_system,
 	player_move_system,

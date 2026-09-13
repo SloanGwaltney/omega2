@@ -48,6 +48,7 @@ casino_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 		CROSSHAIR_COLOR,
 	)
 	prompt_ui(app, ui)
+	clock_ui(app, ui)
 	menu_ui(app, ui)
 }
 
@@ -72,6 +73,7 @@ main :: proc() {
 	// Too large for the stack.
 	game := new(Game)
 	defer free(game)
+	game.clock = clock_init()
 	app.world.user_ptr = game
 	app.world.on_destroy = game_on_destroy
 	app.user_systems = GAME_SYSTEMS[:]
