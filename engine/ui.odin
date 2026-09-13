@@ -24,8 +24,10 @@ Ui :: struct {
 	indices:      [MAX_UI_INDICES]Index,
 	vertex_count: u32,
 	index_count:  u32,
-	// Sampled by every quad this frame. Left nil the ui draws flat colors.
+	// Sampled by every quad this frame. Left nil the ui samples the font atlas.
 	texture:      ^Texture,
+	// Where the white texel sits in the bound texture, used by flat quads.
+	white_uv:     Vec2,
 }
 
 // Clears the geometry, runs the ui callback and uploads what it pushed.
@@ -34,6 +36,7 @@ ui_system :: proc(app: ^App) {
 	ui.vertex_count = 0
 	ui.index_count = 0
 	ui.texture = nil
+	ui.white_uv = app.font.white_uv
 
 	if app.ui_callback != nil {
 		app.ui_callback(app, ui)
@@ -47,7 +50,25 @@ ui_system :: proc(app: ^App) {
 
 // Pushes a solid rectangle. Panics once the frame's ui geometry is full.
 ui_rect :: proc(ui: ^Ui, r: Rect, color: Vec4) {
-	ui_textured_rect(ui, r, {0, 0, 1, 1}, color)
+	ui_textured_rect(ui, r, {ui.white_uv.x, ui.white_uv.y, 0, 0}, color)
+}
+
+// Pushes text with its top left corner at pos, and returns the pen's end. Only
+// draws when the font atlas is bound, which is the default.
+ui_text :: proc(app: ^App, ui: ^Ui, pos: Vec2, size: FontSize, text: string, color: Vec4) -> Vec2 {
+	face := &app.font.faces[size]
+	pen := Vec2{pos.x, pos.y + face.ascent}
+	for ch in text {
+		index := glyph_index(ch) or_continue
+		quad := glyph_quad(face, index, &pen)
+		ui_textured_rect(
+			ui,
+			{quad.x0, quad.y0, quad.x1 - quad.x0, quad.y1 - quad.y0},
+			{quad.s0, quad.t0, quad.s1 - quad.s0, quad.t1 - quad.t0},
+			color,
+		)
+	}
+	return pen
 }
 
 // Pushes a rectangle sampling uv of ui.texture, tinted by color. The uv rect is
@@ -84,7 +105,7 @@ draw_ui_system :: proc(app: ^App) {
 	wgpu.RenderPassEncoderSetVertexBuffer(pass, 0, app.ui_vertices.handle, 0, wgpu.WHOLE_SIZE)
 	wgpu.RenderPassEncoderSetIndexBuffer(pass, app.ui_indices.handle, INDEX_FORMAT, 0, wgpu.WHOLE_SIZE)
 	wgpu.RenderPassEncoderSetBindGroup(pass, 0, app.frame_bind_group)
-	texture := app.ui.texture if app.ui.texture != nil else &app.white_texture
+	texture := app.ui.texture if app.ui.texture != nil else &app.font.atlas
 	wgpu.RenderPassEncoderSetBindGroup(pass, 1, texture.bind_group)
 	wgpu.RenderPassEncoderDrawIndexed(pass, app.ui.index_count, 1, 0, 0, 0)
 }

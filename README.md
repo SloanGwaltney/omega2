@@ -7,6 +7,26 @@ A fun simple FPS game and engine
 `SDL3.dll` must sit next to the executable. Copy it from your Odin
 installation at `vendor/sdl3/SDL3.dll`.
 
+## Fonts
+
+`engine/fonts/mono.ttf` is Cascadia Mono, baked into the binary with `#load`
+and packed into one atlas at startup. Every size in `FontSize` is packed into
+that same atlas along with a white texel, so text and solid rects sample one
+texture and the whole frame's ui stays a single draw call.
+
+It is `ttf/static/CascadiaMono-Regular.ttf` from the upstream `v2407.24`
+release, renamed but otherwise unmodified, under the SIL Open Font License 1.1
+in `engine/fonts/LICENSE`. The OFL reserves the name "Cascadia Code", so a
+modified build of the font may not ship under that name; this repo ships it
+unmodified, which the license permits. Redistributing this repo, in source or
+binary, must carry that LICENSE file with it.
+
+Swapping the font is a file replacement: drop any `.ttf` at that path. The
+`#load` is resolved at compile time, so a missing file is a build error rather
+than a runtime one. Adding a size means one entry in `FontSize` and its pixel
+height in `FONT_PIXEL_HEIGHTS`; if the atlas overflows, raise
+`FONT_ATLAS_SIZE`.
+
 ## Adding a component
 
 A component is a plain struct stored in a `Pool` on the `World`. Three edits:
