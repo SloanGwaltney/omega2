@@ -19,6 +19,12 @@ Game :: struct {
 	// True while the pause menu is up, which frees the mouse and stops the
 	// player reading input.
 	menu_open:     bool,
+	// True while a slot machine screen is up, which frees the mouse and stops
+	// the player the same way the menu does.
+	slot_open:     bool,
+	// Percent of stakes the slot machine pays back, driven by its screen
+	// slider.
+	rtp:           f32,
 	// Escape's state last frame, so the menu toggles on the press edge.
 	escape_down:   bool,
 	// The interact key's state last frame, so interaction fires on the press
@@ -96,7 +102,7 @@ player_input_system :: proc(app: ^engine.App) {
 
 	movement, look: engine.Vec2
 	interact: bool
-	if !g.menu_open {
+	if !g.menu_open && !g.slot_open {
 		if keys[sdl3.Scancode.D] do movement.x += 1
 		if keys[sdl3.Scancode.A] do movement.x -= 1
 		if keys[sdl3.Scancode.W] do movement.y += 1

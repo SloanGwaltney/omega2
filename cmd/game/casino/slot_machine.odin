@@ -103,8 +103,57 @@ slot_machine_hover :: proc(app: ^engine.App, e: engine.Entity) {
 	(^Game)(app.world.user_ptr).prompt = "[E] Play"
 }
 
-// Placeholder until the machine has a game to play.
+// Opens the machine's screen, which frees the mouse for its ui.
 @(private = "file")
 slot_machine_interact :: proc(app: ^engine.App, e: engine.Entity) {
-	fmt.printfln("played slot machine %d", e)
+	slot_machine_set_open(app, true)
+}
+
+// Opens or closes the slot machine screen and captures the mouse to match.
+slot_machine_set_open :: proc(app: ^engine.App, open: bool) {
+	g := (^Game)(app.world.user_ptr)
+	g.slot_open = open
+	engine.set_mouse_captured(app, !open)
+}
+
+SLOT_PANEL_WIDTH :: 420.0
+SLOT_PANEL_HEIGHT :: 260.0
+SLOT_PANEL_PAD :: 24.0
+SLOT_SLIDER_HEIGHT :: 24.0
+SLOT_BUTTON_HEIGHT :: 48.0
+SLOT_PANEL_COLOR :: engine.Vec4{0.08, 0.08, 0.1, 0.95}
+SLOT_PANEL_TEXT_COLOR :: engine.Vec4{1, 1, 1, 1}
+SLOT_MIN_RTP :: 80.0
+SLOT_MAX_RTP :: 99.0
+
+// Draws the open machine's screen: a return to player slider over a spin and
+// a close button.
+slot_machine_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
+	g := (^Game)(app.world.user_ptr)
+	if !g.slot_open {
+		return
+	}
+	panel := engine.Rect {
+		f32(app.surface_config.width) / 2 - SLOT_PANEL_WIDTH / 2,
+		f32(app.surface_config.height) / 2 - SLOT_PANEL_HEIGHT / 2,
+		SLOT_PANEL_WIDTH,
+		SLOT_PANEL_HEIGHT,
+	}
+	engine.ui_rect(ui, panel, SLOT_PANEL_COLOR)
+
+	x := panel.x + SLOT_PANEL_PAD
+	w := panel.w - SLOT_PANEL_PAD * 2
+	y := panel.y + SLOT_PANEL_PAD
+	label := fmt.tprintf("Return to player: %.0f%%", g.rtp)
+	y = engine.ui_text(app, ui, {x, y}, .Large, label, SLOT_PANEL_TEXT_COLOR).y + SLOT_PANEL_PAD
+	engine.ui_slider(app, ui, {x, y, w, SLOT_SLIDER_HEIGHT}, &g.rtp, SLOT_MIN_RTP, SLOT_MAX_RTP)
+
+	y += SLOT_SLIDER_HEIGHT + SLOT_PANEL_PAD
+	if engine.ui_button(app, ui, {x, y, w, SLOT_BUTTON_HEIGHT}, .Large, "Spin") {
+		fmt.printfln("spun at %.0f%% rtp", g.rtp)
+	}
+	y += SLOT_BUTTON_HEIGHT + SLOT_PANEL_PAD
+	if engine.ui_button(app, ui, {x, y, w, SLOT_BUTTON_HEIGHT}, .Large, "Leave") {
+		slot_machine_set_open(app, false)
+	}
 }

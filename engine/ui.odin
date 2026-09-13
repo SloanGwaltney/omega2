@@ -28,6 +28,9 @@ Ui :: struct {
 	texture:      ^Texture,
 	// Where the white texel sits in the bound texture, used by flat quads.
 	white_uv:     Vec2,
+	// Widget dragging the mouse, identified by the pointer it drives. Held
+	// across frames until the button is released.
+	active:       rawptr,
 }
 
 // Clears the geometry, runs the ui callback and uploads what it pushed.
@@ -37,6 +40,9 @@ ui_system :: proc(app: ^App) {
 	ui.index_count = 0
 	ui.texture = nil
 	ui.white_uv = app.font.white_uv
+	if !app.input.mouse_down {
+		ui.active = nil
+	}
 
 	if app.ui_callback != nil {
 		app.ui_callback(app, ui)
@@ -71,6 +77,38 @@ ui_button :: proc(app: ^App, ui: ^Ui, r: Rect, size: FontSize, text: string) -> 
 	}
 	ui_text(app, ui, pos, size, text, UI_BUTTON_TEXT_COLOR)
 	return hovered && app.input.mouse_click
+}
+
+// Slider colors, with the knob brightened while it is being dragged.
+UI_SLIDER_TRACK_COLOR :: Vec4{0.12, 0.12, 0.14, 0.9}
+UI_SLIDER_KNOB_COLOR :: Vec4{0.55, 0.55, 0.6, 1}
+UI_SLIDER_KNOB_ACTIVE_COLOR :: Vec4{0.85, 0.85, 0.9, 1}
+UI_SLIDER_KNOB_W :: 12
+
+// Pushes a horizontal slider filling r that drives value over min to max, and
+// returns true on frames the drag moved it.
+ui_slider :: proc(app: ^App, ui: ^Ui, r: Rect, value: ^f32, min, max: f32) -> bool {
+	if ui.active == nil && app.input.mouse_click && rect_contains(r, app.input.mouse_pos) {
+		ui.active = value
+	}
+
+	changed := false
+	if ui.active == value {
+		t := clamp(
+			(app.input.mouse_pos.x - r.x - UI_SLIDER_KNOB_W / 2) / (r.w - UI_SLIDER_KNOB_W),
+			0,
+			1,
+		)
+		next := min + t * (max - min)
+		changed = next != value^
+		value^ = next
+	}
+
+	ui_rect(ui, r, UI_SLIDER_TRACK_COLOR)
+	t := clamp((value^ - min) / (max - min), 0, 1)
+	knob := Rect{r.x + t * (r.w - UI_SLIDER_KNOB_W), r.y, UI_SLIDER_KNOB_W, r.h}
+	ui_rect(ui, knob, UI_SLIDER_KNOB_ACTIVE_COLOR if ui.active == value else UI_SLIDER_KNOB_COLOR)
+	return changed
 }
 
 // True when p is inside r.
