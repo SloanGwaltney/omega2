@@ -12,7 +12,7 @@ expect_vec3 :: proc(t: ^testing.T, got, want: Vec3, loc := #caller_location) {
 }
 
 @(private = "file")
-transform_point :: proc(m: Mat4, p: Vec3) -> Vec3 {
+mat_point :: proc(m: Mat4, p: Vec3) -> Vec3 {
 	v := m * Vec4{p.x, p.y, p.z, 1}
 	return v.xyz
 }
@@ -20,7 +20,7 @@ transform_point :: proc(m: Mat4, p: Vec3) -> Vec3 {
 @(test)
 test_transform_matrix_identity :: proc(t: ^testing.T) {
 	m := transform_matrix(transform_identity())
-	expect_vec3(t, transform_point(m, {1, 2, 3}), {1, 2, 3})
+	expect_vec3(t, mat_point(m, {1, 2, 3}), {1, 2, 3})
 }
 
 @(test)
@@ -28,7 +28,7 @@ test_transform_matrix_translation :: proc(t: ^testing.T) {
 	tr := transform_identity()
 	tr.pos = {5, -2, 1}
 	m := transform_matrix(tr)
-	expect_vec3(t, transform_point(m, {1, 1, 1}), {6, -1, 2})
+	expect_vec3(t, mat_point(m, {1, 1, 1}), {6, -1, 2})
 }
 
 @(test)
@@ -36,7 +36,7 @@ test_transform_matrix_scale :: proc(t: ^testing.T) {
 	tr := transform_identity()
 	tr.scale = {2, 3, 4}
 	m := transform_matrix(tr)
-	expect_vec3(t, transform_point(m, {1, 1, 1}), {2, 3, 4})
+	expect_vec3(t, mat_point(m, {1, 1, 1}), {2, 3, 4})
 }
 
 @(test)
@@ -45,7 +45,7 @@ test_transform_matrix_rotation :: proc(t: ^testing.T) {
 	tr.rot = linalg.quaternion_from_euler_angles_f32(0, math.PI / 2, 0, .XYZ)
 	m := transform_matrix(tr)
 	// A quarter turn about y sends +x to -z.
-	expect_vec3(t, transform_point(m, {1, 0, 0}), {0, 0, -1})
+	expect_vec3(t, mat_point(m, {1, 0, 0}), {0, 0, -1})
 }
 
 @(test)
@@ -92,4 +92,54 @@ test_perspective_aspect_and_fov :: proc(t: ^testing.T) {
 
 	// w carries the view space depth, so perspective divide works.
 	testing.expect(t, abs(top.w - 1) < EPSILON, "w should be -z")
+}
+
+@(test)
+test_transform_point_inverse_round_trip :: proc(t: ^testing.T) {
+	tr := Transform {
+		pos   = {1, -2, 3},
+		rot   = linalg.quaternion_from_euler_angles_f32(0.3, -0.7, 1.1, .XYZ),
+		scale = {2, 0.5, 1.5},
+	}
+	p := Vec3{4, -1, 0.25}
+	expect_vec3(t, transform_point_inverse(tr, transform_point(tr, p)), p)
+}
+
+// A direction carries no position, so the translation must not be applied to
+// it the way transform_point_inverse applies it to a point.
+@(test)
+test_transform_vector_inverse_ignores_translation :: proc(t: ^testing.T) {
+	tr := Transform {
+		rot   = linalg.quaternion_from_euler_angles_f32(0.3, -0.7, 1.1, .XYZ),
+		scale = {2, 0.5, 1.5},
+	}
+	moved := tr
+	moved.pos = {9, -4, 2}
+	expect_vec3(t, transform_vector_inverse(tr, {1, 0, 0}), transform_vector_inverse(moved, {1, 0, 0}))
+}
+
+// The pair leaves a ray parameter unchanged, which is what lets ray_aabb
+// report world distances from a test done in local space.
+@(test)
+test_transform_vector_inverse_preserves_ray_parameter :: proc(t: ^testing.T) {
+	tr := Transform {
+		pos   = {1, -2, 3},
+		rot   = linalg.quaternion_from_euler_angles_f32(0.3, -0.7, 1.1, .XYZ),
+		scale = {2, 0.5, 1.5},
+	}
+	origin, dir, distance := Vec3{5, 1, -2}, linalg.normalize(Vec3{1, 2, 3}), f32(4)
+
+	local := transform_point_inverse(tr, origin) + transform_vector_inverse(tr, dir) * distance
+	expect_vec3(t, transform_point(tr, local), origin + dir * distance)
+}
+
+@(test)
+test_ortho_screen_maps_window_corners :: proc(t: ^testing.T) {
+	m := ortho_screen(800, 600)
+
+	top_left := m * Vec4{0, 0, 0, 1}
+	bottom_right := m * Vec4{800, 600, 0, 1}
+
+	expect_vec3(t, top_left.xyz, {-1, 1, 0})
+	expect_vec3(t, bottom_right.xyz, {1, -1, 0})
 }

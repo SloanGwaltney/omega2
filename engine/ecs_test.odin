@@ -115,3 +115,32 @@ test_ids_not_reused :: proc(t: ^testing.T) {
 
 	testing.expect_value(t, b, Entity(1))
 }
+
+@(private = "file")
+DestroyRecord :: struct {
+	entity:          Entity,
+	transform_clear: bool,
+}
+
+// on_destroy runs after the engine pools are cleared, so a game hook can
+// assume the entity is already gone from them.
+@(test)
+test_on_destroy_runs_after_pools_are_cleared :: proc(t: ^testing.T) {
+	w := world_create()
+	defer world_destroy(w)
+
+	record: DestroyRecord
+	w.user_ptr = &record
+	w.on_destroy = proc(w: ^World, e: Entity) {
+		r := (^DestroyRecord)(w.user_ptr)
+		r.entity = e
+		r.transform_clear = pool_get(&w.transform, e) == nil
+	}
+
+	e := entity_create(w)
+	pool_add(&w.transform, e, transform_identity())
+	entity_destroy(w, e)
+
+	testing.expect_value(t, record.entity, e)
+	testing.expect(t, record.transform_clear, "engine pools should be cleared first")
+}
