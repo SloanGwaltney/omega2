@@ -67,6 +67,10 @@ MouseLook :: struct {
 	pitch:       f32,
 }
 
+// Radius of the player's collision sphere, centred at half eye height so
+// waist high props block it.
+PLAYER_RADIUS :: 0.4
+
 // How far a player may look up or down, just short of straight up so the
 // forward axis never degenerates.
 PITCH_LIMIT :: math.PI / 2 - 0.01
@@ -148,5 +152,8 @@ player_move_system :: proc(app: ^engine.App) {
 			continue
 		}
 		transform.pos += linalg.normalize(dir) * movement.speed * dt
+
+		offset := engine.Vec3{0, EYE_HEIGHT / 2, 0}
+		transform.pos = engine.collide_sphere(w, transform.pos - offset, PLAYER_RADIUS) + offset
 	}
 }

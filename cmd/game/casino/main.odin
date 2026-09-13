@@ -79,6 +79,8 @@ main :: proc() {
 		},
 	)
 
+	slot_machine_create(app, {0, 0, 0})
+
 	app.ui_callback = casino_ui
 
 	engine.run_app(app)
