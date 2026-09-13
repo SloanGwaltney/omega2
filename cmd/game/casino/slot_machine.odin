@@ -73,6 +73,13 @@ SLOT_INDICES := [?]engine.Index {
 	20, 21, 22, 20, 22, 23,
 }
 
+// A playable machine. Needs the drawable and Aabb slot_machine_create gives
+// it, which is what the player's ray hits.
+SlotMachine :: struct {
+	// Percent of stakes this machine pays back, driven by its screen slider.
+	rtp: f32,
+}
+
 // Spawns a slot machine standing on the floor at pos.
 slot_machine_create :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity {
 	e := engine.entity_create(app.world)
@@ -89,11 +96,13 @@ slot_machine_create :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity
 		},
 	)
 	engine.pool_add(&app.world.aabb, e, engine.Aabb{{-W, 0, -D}, {W, H, D}})
+	g := (^Game)(app.world.user_ptr)
 	engine.pool_add(
-		&(^Game)(app.world.user_ptr).interactable,
+		&g.interactable,
 		e,
 		Interactable{on_hover = slot_machine_hover, on_interact = slot_machine_interact},
 	)
+	engine.pool_add(&g.slot_machine, e, SlotMachine{rtp = SLOT_MAX_RTP})
 	return e
 }
 
@@ -106,14 +115,15 @@ slot_machine_hover :: proc(app: ^engine.App, e: engine.Entity) {
 // Opens the machine's screen, which frees the mouse for its ui.
 @(private = "file")
 slot_machine_interact :: proc(app: ^engine.App, e: engine.Entity) {
-	slot_machine_set_open(app, true)
+	slot_machine_set_open(app, e)
 }
 
-// Opens or closes the slot machine screen and captures the mouse to match.
-slot_machine_set_open :: proc(app: ^engine.App, open: bool) {
+// Opens machine's screen, or closes the open one when it is nil, and captures
+// the mouse to match.
+slot_machine_set_open :: proc(app: ^engine.App, machine: Maybe(engine.Entity)) {
 	g := (^Game)(app.world.user_ptr)
-	g.slot_open = open
-	engine.set_mouse_captured(app, !open)
+	g.open_machine = machine
+	engine.set_mouse_captured(app, machine == nil)
 }
 
 SLOT_PANEL_WIDTH :: 420.0
@@ -130,9 +140,11 @@ SLOT_MAX_RTP :: 99.0
 // a close button.
 slot_machine_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 	g := (^Game)(app.world.user_ptr)
-	if !g.slot_open {
+	machine, open := g.open_machine.?
+	if !open {
 		return
 	}
+	slot := engine.pool_get(&g.slot_machine, machine)
 	panel := engine.Rect {
 		f32(app.surface_config.width) / 2 - SLOT_PANEL_WIDTH / 2,
 		f32(app.surface_config.height) / 2 - SLOT_PANEL_HEIGHT / 2,
@@ -144,16 +156,16 @@ slot_machine_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 	x := panel.x + SLOT_PANEL_PAD
 	w := panel.w - SLOT_PANEL_PAD * 2
 	y := panel.y + SLOT_PANEL_PAD
-	label := fmt.tprintf("Return to player: %.0f%%", g.rtp)
+	label := fmt.tprintf("Return to player: %.0f%%", slot.rtp)
 	y = engine.ui_text(app, ui, {x, y}, .Large, label, SLOT_PANEL_TEXT_COLOR).y + SLOT_PANEL_PAD
-	engine.ui_slider(app, ui, {x, y, w, SLOT_SLIDER_HEIGHT}, &g.rtp, SLOT_MIN_RTP, SLOT_MAX_RTP)
+	engine.ui_slider(app, ui, {x, y, w, SLOT_SLIDER_HEIGHT}, &slot.rtp, SLOT_MIN_RTP, SLOT_MAX_RTP)
 
 	y += SLOT_SLIDER_HEIGHT + SLOT_PANEL_PAD
 	if engine.ui_button(app, ui, {x, y, w, SLOT_BUTTON_HEIGHT}, .Large, "Spin") {
-		fmt.printfln("spun at %.0f%% rtp", g.rtp)
+		fmt.printfln("machine %d spun at %.0f%% rtp", machine, slot.rtp)
 	}
 	y += SLOT_BUTTON_HEIGHT + SLOT_PANEL_PAD
 	if engine.ui_button(app, ui, {x, y, w, SLOT_BUTTON_HEIGHT}, .Large, "Leave") {
-		slot_machine_set_open(app, false)
+		slot_machine_set_open(app, nil)
 	}
 }

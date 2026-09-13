@@ -29,7 +29,7 @@ FLOOR_INDICES := [?]engine.Index{0, 1, 2, 0, 2, 3}
 // Draws a centred crosshair, or the slot machine screen in place of the
 // world ui while a machine is open.
 casino_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
-	if (^Game)(app.world.user_ptr).slot_open {
+	if (^Game)(app.world.user_ptr).open_machine != nil {
 		slot_machine_ui(app, ui)
 		return
 	}
@@ -73,7 +73,6 @@ main :: proc() {
 	game := new(Game)
 	defer free(game)
 	app.world.user_ptr = game
-	game.rtp = SLOT_MAX_RTP
 	app.world.on_destroy = game_on_destroy
 	app.user_systems = GAME_SYSTEMS[:]
 
@@ -104,7 +103,8 @@ main :: proc() {
 		},
 	)
 
-	slot_machine_create(app, {0, 0, 0})
+	slot_machine_create(app, {-1.5, 0, 0})
+	slot_machine_create(app, {1.5, 0, 0})
 
 	app.ui_callback = casino_ui
 

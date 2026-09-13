@@ -17,8 +17,8 @@ menu_system :: proc(app: ^engine.App) {
 	if !down || g.escape_down {
 		return
 	}
-	if g.slot_open {
-		slot_machine_set_open(app, false)
+	if g.open_machine != nil {
+		slot_machine_set_open(app, nil)
 		return
 	}
 	menu_set_open(app, !g.menu_open)

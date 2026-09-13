@@ -16,15 +16,13 @@ Game :: struct {
 	mouse_look:    engine.Pool(MouseLook),
 	interactor:    engine.Pool(Interactor),
 	interactable:  engine.Pool(Interactable),
+	slot_machine:  engine.Pool(SlotMachine),
 	// True while the pause menu is up, which frees the mouse and stops the
 	// player reading input.
 	menu_open:     bool,
-	// True while a slot machine screen is up, which frees the mouse and stops
-	// the player the same way the menu does.
-	slot_open:     bool,
-	// Percent of stakes the slot machine pays back, driven by its screen
-	// slider.
-	rtp:           f32,
+	// Machine whose screen is up, which frees the mouse and stops the player
+	// the same way the menu does. Nil while the player is walking.
+	open_machine:  Maybe(engine.Entity),
 	// Escape's state last frame, so the menu toggles on the press edge.
 	escape_down:   bool,
 	// The interact key's state last frame, so interaction fires on the press
@@ -52,6 +50,7 @@ game_on_destroy :: proc(w: ^engine.World, e: engine.Entity) {
 	engine.pool_remove(&g.mouse_look, e)
 	engine.pool_remove(&g.interactor, e)
 	engine.pool_remove(&g.interactable, e)
+	engine.pool_remove(&g.slot_machine, e)
 }
 
 // What an entity wants to do this frame, read off the raw device state.
@@ -102,7 +101,7 @@ player_input_system :: proc(app: ^engine.App) {
 
 	movement, look: engine.Vec2
 	interact: bool
-	if !g.menu_open && !g.slot_open {
+	if !g.menu_open && g.open_machine == nil {
 		if keys[sdl3.Scancode.D] do movement.x += 1
 		if keys[sdl3.Scancode.A] do movement.x -= 1
 		if keys[sdl3.Scancode.W] do movement.y += 1
