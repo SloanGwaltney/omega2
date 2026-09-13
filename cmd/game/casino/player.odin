@@ -10,13 +10,23 @@ import "vendor:sdl3"
 // The game's state, reached from app.world.user_ptr. Pools are keyed by the
 // same Entity ids the engine hands out.
 Game :: struct {
-	input:      engine.Pool(InputValues),
-	player:     engine.Pool(Player),
-	movement:   engine.Pool(Movement),
-	mouse_look: engine.Pool(MouseLook),
+	input:       engine.Pool(InputValues),
+	player:      engine.Pool(Player),
+	movement:    engine.Pool(Movement),
+	mouse_look:  engine.Pool(MouseLook),
+	// True while the pause menu is up, which frees the mouse and stops the
+	// player reading input.
+	menu_open:   bool,
+	// Escape's state last frame, so the menu toggles on the press edge.
+	escape_down: bool,
 }
 
-GAME_SYSTEMS := [?]engine.System{player_input_system, player_look_system, player_move_system}
+GAME_SYSTEMS := [?]engine.System {
+	menu_system,
+	player_input_system,
+	player_look_system,
+	player_move_system,
+}
 
 // Drops e from the game's pools. Hooked to world.on_destroy.
 game_on_destroy :: proc(w: ^engine.World, e: engine.Entity) {
@@ -61,18 +71,22 @@ MouseLook :: struct {
 // forward axis never degenerates.
 PITCH_LIMIT :: math.PI / 2 - 0.01
 
-// Maps this frame's keyboard and mouse into every InputValues component.
+// Maps this frame's keyboard and mouse into every InputValues component. The
+// menu swallows both while it is up.
 player_input_system :: proc(app: ^engine.App) {
 	g := (^Game)(app.world.user_ptr)
 	keys := app.input.keys
 
-	movement: engine.Vec2
-	if keys[sdl3.Scancode.D] do movement.x += 1
-	if keys[sdl3.Scancode.A] do movement.x -= 1
-	if keys[sdl3.Scancode.W] do movement.y += 1
-	if keys[sdl3.Scancode.S] do movement.y -= 1
-	if movement != {} {
-		movement = linalg.normalize(movement)
+	movement, look: engine.Vec2
+	if !g.menu_open {
+		if keys[sdl3.Scancode.D] do movement.x += 1
+		if keys[sdl3.Scancode.A] do movement.x -= 1
+		if keys[sdl3.Scancode.W] do movement.y += 1
+		if keys[sdl3.Scancode.S] do movement.y -= 1
+		if movement != {} {
+			movement = linalg.normalize(movement)
+		}
+		look = app.input.mouse_delta
 	}
 
 	for i in 0 ..< app.world.count {
@@ -81,7 +95,7 @@ player_input_system :: proc(app: ^engine.App) {
 			continue
 		}
 		input.movement = movement
-		input.look = app.input.mouse_delta
+		input.look = look
 	}
 }
 

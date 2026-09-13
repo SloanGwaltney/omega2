@@ -53,6 +53,31 @@ ui_rect :: proc(ui: ^Ui, r: Rect, color: Vec4) {
 	ui_textured_rect(ui, r, {ui.white_uv.x, ui.white_uv.y, 0, 0}, color)
 }
 
+// Button colors, brightened while the cursor is over the button.
+UI_BUTTON_COLOR :: Vec4{0.16, 0.16, 0.18, 0.9}
+UI_BUTTON_HOVER_COLOR :: Vec4{0.28, 0.28, 0.32, 0.95}
+UI_BUTTON_TEXT_COLOR :: Vec4{1, 1, 1, 1}
+
+// Pushes a button filling r with text centred in it, and returns true on the
+// frame the left button goes down inside it.
+ui_button :: proc(app: ^App, ui: ^Ui, r: Rect, size: FontSize, text: string) -> bool {
+	hovered := rect_contains(r, app.input.mouse_pos)
+	ui_rect(ui, r, UI_BUTTON_HOVER_COLOR if hovered else UI_BUTTON_COLOR)
+
+	face := &app.font.faces[size]
+	pos := Vec2 {
+		r.x + (r.w - font_measure(&app.font, size, text)) / 2,
+		r.y + (r.h - face.line_height) / 2,
+	}
+	ui_text(app, ui, pos, size, text, UI_BUTTON_TEXT_COLOR)
+	return hovered && app.input.mouse_click
+}
+
+// True when p is inside r.
+rect_contains :: proc(r: Rect, p: Vec2) -> bool {
+	return p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h
+}
+
 // Pushes text with its top left corner at pos, and returns the pen's end. Only
 // draws when the font atlas is bound, which is the default.
 ui_text :: proc(app: ^App, ui: ^Ui, pos: Vec2, size: FontSize, text: string, color: Vec4) -> Vec2 {

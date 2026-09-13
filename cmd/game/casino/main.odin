@@ -39,6 +39,7 @@ casino_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 		{w / 2 - CROSSHAIR_THICKNESS / 2, cy, CROSSHAIR_THICKNESS, CROSSHAIR_LENGTH},
 		CROSSHAIR_COLOR,
 	)
+	menu_ui(app, ui)
 }
 
 main :: proc() {
