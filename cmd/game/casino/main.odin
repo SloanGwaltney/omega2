@@ -15,6 +15,8 @@ FLOOR_COLOR :: engine.Vec4{0.15, 0.35, 0.2, 1}
 CROSSHAIR_LENGTH :: 18.0
 CROSSHAIR_THICKNESS :: 2.0
 CROSSHAIR_COLOR :: engine.Vec4{1, 1, 1, 0.75}
+PROMPT_OFFSET :: 48.0
+PROMPT_COLOR :: engine.Vec4{1, 1, 1, 1}
 
 FLOOR_VERTICES := [?]engine.Vertex {
 	{pos = {-FLOOR_HALF, 0, FLOOR_HALF}, color = FLOOR_COLOR},
@@ -40,7 +42,22 @@ casino_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 		{w / 2 - CROSSHAIR_THICKNESS / 2, cy, CROSSHAIR_THICKNESS, CROSSHAIR_LENGTH},
 		CROSSHAIR_COLOR,
 	)
+	prompt_ui(app, ui)
 	menu_ui(app, ui)
+}
+
+// Draws the prompt raised by whatever the player is aimed at, centred below
+// the crosshair.
+prompt_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
+	g := (^Game)(app.world.user_ptr)
+	if g.prompt == "" {
+		return
+	}
+	pos := engine.Vec2 {
+		f32(app.surface_config.width) / 2 - engine.font_measure(&app.font, .Large, g.prompt) / 2,
+		f32(app.surface_config.height) / 2 + PROMPT_OFFSET,
+	}
+	engine.ui_text(app, ui, pos, .Large, g.prompt, PROMPT_COLOR)
 }
 
 main :: proc() {

@@ -4,6 +4,7 @@
 package main
 
 import "../../../engine"
+import "core:fmt"
 import "core:slice"
 
 SLOT_HALF_WIDTH :: 0.5
@@ -88,6 +89,22 @@ slot_machine_create :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity
 		},
 	)
 	engine.pool_add(&app.world.aabb, e, engine.Aabb{{-W, 0, -D}, {W, H, D}})
-	engine.pool_add(&(^Game)(app.world.user_ptr).interactable, e, Interactable{})
+	engine.pool_add(
+		&(^Game)(app.world.user_ptr).interactable,
+		e,
+		Interactable{on_hover = slot_machine_hover, on_interact = slot_machine_interact},
+	)
 	return e
+}
+
+// Raises the slot machine's prompt while the player is aimed at it.
+@(private = "file")
+slot_machine_hover :: proc(app: ^engine.App, e: engine.Entity) {
+	(^Game)(app.world.user_ptr).prompt = "[E] Play"
+}
+
+// Placeholder until the machine has a game to play.
+@(private = "file")
+slot_machine_interact :: proc(app: ^engine.App, e: engine.Entity) {
+	fmt.printfln("played slot machine %d", e)
 }

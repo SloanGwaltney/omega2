@@ -10,17 +10,23 @@ import "vendor:sdl3"
 // The game's state, reached from app.world.user_ptr. Pools are keyed by the
 // same Entity ids the engine hands out.
 Game :: struct {
-	input:        engine.Pool(InputValues),
-	player:       engine.Pool(Player),
-	movement:     engine.Pool(Movement),
-	mouse_look:   engine.Pool(MouseLook),
-	interactor:   engine.Pool(Interactor),
-	interactable: engine.Pool(Interactable),
+	input:         engine.Pool(InputValues),
+	player:        engine.Pool(Player),
+	movement:      engine.Pool(Movement),
+	mouse_look:    engine.Pool(MouseLook),
+	interactor:    engine.Pool(Interactor),
+	interactable:  engine.Pool(Interactable),
 	// True while the pause menu is up, which frees the mouse and stops the
 	// player reading input.
-	menu_open:    bool,
+	menu_open:     bool,
 	// Escape's state last frame, so the menu toggles on the press edge.
-	escape_down:  bool,
+	escape_down:   bool,
+	// The interact key's state last frame, so interaction fires on the press
+	// edge rather than every frame it is held.
+	interact_down: bool,
+	// Prompt raised by whatever the player is aimed at, refilled every frame
+	// by interactor_system and drawn by casino_ui. Empty when nothing is.
+	prompt:        string,
 }
 
 GAME_SYSTEMS := [?]engine.System {
@@ -48,6 +54,8 @@ InputValues :: struct {
 	movement: engine.Vec2,
 	// Mouse motion since the last frame, in pixels. x is right, y is down.
 	look:     engine.Vec2,
+	// True only on the frame the interact key goes down.
+	interact: bool,
 }
 
 // Marks the entity the player drives. Needs a Transform and InputValues,
@@ -87,6 +95,7 @@ player_input_system :: proc(app: ^engine.App) {
 	keys := app.input.keys
 
 	movement, look: engine.Vec2
+	interact: bool
 	if !g.menu_open {
 		if keys[sdl3.Scancode.D] do movement.x += 1
 		if keys[sdl3.Scancode.A] do movement.x -= 1
@@ -96,6 +105,11 @@ player_input_system :: proc(app: ^engine.App) {
 			movement = linalg.normalize(movement)
 		}
 		look = app.input.mouse_delta
+		down := keys[sdl3.Scancode.E]
+		interact = down && !g.interact_down
+		g.interact_down = down
+	} else {
+		g.interact_down = false
 	}
 
 	for i in 0 ..< app.world.count {
@@ -105,6 +119,7 @@ player_input_system :: proc(app: ^engine.App) {
 		}
 		input.movement = movement
 		input.look = look
+		input.interact = interact
 	}
 }
 
