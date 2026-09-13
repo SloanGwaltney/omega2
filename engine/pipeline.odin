@@ -130,8 +130,9 @@ create_unlit_pipeline :: proc(app: ^App) {
 }
 
 // Builds the ui pipeline: the same vertex layout and frame bind group as unlit,
-// but drawn in screen space with alpha blending, no culling and no depth, so it
-// lands on top of the world in the order its batches were built.
+// plus a sampled texture at group 1, drawn in screen space with alpha blending,
+// no culling and no depth, so it lands on top of the world in the order its
+// batches were built.
 create_ui_pipeline :: proc(app: ^App) {
 	module := wgpu.DeviceCreateShaderModule(
 		app.device,
@@ -142,7 +143,7 @@ create_ui_pipeline :: proc(app: ^App) {
 	}
 	defer wgpu.ShaderModuleRelease(module)
 
-	layouts := [?]wgpu.BindGroupLayout{app.frame_layout}
+	layouts := [?]wgpu.BindGroupLayout{app.frame_layout, app.texture_layout}
 	pipeline_layout := wgpu.DeviceCreatePipelineLayout(
 		app.device,
 		&{label = "ui", bindGroupLayoutCount = len(layouts), bindGroupLayouts = &layouts[0]},

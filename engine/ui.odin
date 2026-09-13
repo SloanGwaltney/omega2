@@ -24,6 +24,8 @@ Ui :: struct {
 	indices:      [MAX_UI_INDICES]Index,
 	vertex_count: u32,
 	index_count:  u32,
+	// Sampled by every quad this frame. Left nil the ui draws flat colors.
+	texture:      ^Texture,
 }
 
 // Clears the geometry, runs the ui callback and uploads what it pushed.
@@ -31,6 +33,7 @@ ui_system :: proc(app: ^App) {
 	ui := &app.ui
 	ui.vertex_count = 0
 	ui.index_count = 0
+	ui.texture = nil
 
 	if app.ui_callback != nil {
 		app.ui_callback(app, ui)
@@ -44,14 +47,24 @@ ui_system :: proc(app: ^App) {
 
 // Pushes a solid rectangle. Panics once the frame's ui geometry is full.
 ui_rect :: proc(ui: ^Ui, r: Rect, color: Vec4) {
+	ui_textured_rect(ui, r, {0, 0, 1, 1}, color)
+}
+
+// Pushes a rectangle sampling uv of ui.texture, tinted by color. The uv rect is
+// in texture space, origin at the top left.
+ui_textured_rect :: proc(ui: ^Ui, r: Rect, uv: Rect, color: Vec4) {
 	assert(ui.vertex_count + 4 <= MAX_UI_VERTICES, "out of ui vertices")
 	assert(ui.index_count + 6 <= MAX_UI_INDICES, "out of ui indices")
 
 	base := ui.vertex_count
-	ui.vertices[base + 0] = {pos = {r.x, r.y, 0}, color = color}
-	ui.vertices[base + 1] = {pos = {r.x, r.y + r.h, 0}, color = color}
-	ui.vertices[base + 2] = {pos = {r.x + r.w, r.y + r.h, 0}, color = color}
-	ui.vertices[base + 3] = {pos = {r.x + r.w, r.y, 0}, color = color}
+	ui.vertices[base + 0] = {pos = {r.x, r.y, 0}, color = color, uv = {uv.x, uv.y}}
+	ui.vertices[base + 1] = {pos = {r.x, r.y + r.h, 0}, color = color, uv = {uv.x, uv.y + uv.h}}
+	ui.vertices[base + 2] = {
+		pos   = {r.x + r.w, r.y + r.h, 0},
+		color = color,
+		uv    = {uv.x + uv.w, uv.y + uv.h},
+	}
+	ui.vertices[base + 3] = {pos = {r.x + r.w, r.y, 0}, color = color, uv = {uv.x + uv.w, uv.y}}
 	ui.vertex_count += 4
 
 	quad := [?]Index{0, 1, 2, 0, 2, 3}
@@ -71,5 +84,7 @@ draw_ui_system :: proc(app: ^App) {
 	wgpu.RenderPassEncoderSetVertexBuffer(pass, 0, app.ui_vertices.handle, 0, wgpu.WHOLE_SIZE)
 	wgpu.RenderPassEncoderSetIndexBuffer(pass, app.ui_indices.handle, INDEX_FORMAT, 0, wgpu.WHOLE_SIZE)
 	wgpu.RenderPassEncoderSetBindGroup(pass, 0, app.frame_bind_group)
+	texture := app.ui.texture if app.ui.texture != nil else &app.white_texture
+	wgpu.RenderPassEncoderSetBindGroup(pass, 1, texture.bind_group)
 	wgpu.RenderPassEncoderDrawIndexed(pass, app.ui.index_count, 1, 0, 0, 0)
 }

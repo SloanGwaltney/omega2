@@ -36,6 +36,10 @@ App :: struct {
 	models:           GpuBuffer,
 	frame_layout:     wgpu.BindGroupLayout,
 	frame_bind_group: wgpu.BindGroup,
+	texture_layout:   wgpu.BindGroupLayout,
+	// Sampled by ui draws that want a flat color, so untextured and textured
+	// ui go through the same pipeline.
+	white_texture:    Texture,
 	// Staging for models, packed in draw order and uploaded whole each frame.
 	model_matrices:   [MAX_ENTITIES]Mat4,
 	// Draw batches rebuilt each frame from the drawables.
@@ -67,6 +71,8 @@ new_app :: proc() -> ^App {
 	create_depth_texture(app)
 	create_buffers(app)
 	create_frame_bind_group(app)
+	create_texture_layout(app)
+	app.white_texture = create_texture(app, "white", {255, 255, 255, 255}, 1, 1, .RGBA8Unorm)
 	create_unlit_pipeline(app)
 	create_ui_pipeline(app)
 	return app
@@ -79,6 +85,8 @@ delete_app :: proc(app: ^App) {
 	delete_buffers(app)
 	wgpu.RenderPipelineRelease(app.unlit_pipeline)
 	wgpu.RenderPipelineRelease(app.ui_pipeline)
+	delete_texture(&app.white_texture)
+	wgpu.BindGroupLayoutRelease(app.texture_layout)
 	wgpu.BindGroupRelease(app.frame_bind_group)
 	wgpu.BindGroupLayoutRelease(app.frame_layout)
 	wgpu.QueueRelease(app.queue)

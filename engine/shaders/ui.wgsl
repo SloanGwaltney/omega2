@@ -13,6 +13,9 @@ struct VertexOut {
 // Pixels to clip space, rebuilt whenever the surface is resized.
 @group(0) @binding(2) var<uniform> ui_proj: mat4x4<f32>;
 
+@group(1) @binding(0) var ui_texture: texture_2d<f32>;
+@group(1) @binding(1) var ui_sampler: sampler;
+
 @vertex
 fn vs_main(in: VertexIn) -> VertexOut {
 	var out: VertexOut;
@@ -24,5 +27,5 @@ fn vs_main(in: VertexIn) -> VertexOut {
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-	return in.color;
+	return in.color * textureSample(ui_texture, ui_sampler, in.uv);
 }
