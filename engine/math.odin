@@ -82,3 +82,14 @@ ortho_screen :: proc(width, height: f32) -> Mat4 {
 	m[3, 3] = 1
 	return m
 }
+
+// Maps p from an entity's local space into world space.
+transform_point :: proc(t: Transform, p: Vec3) -> Vec3 {
+	return t.pos + linalg.quaternion_mul_vector3(t.rot, p * t.scale)
+}
+
+// Maps p from world space into an entity's local space. The inverse of
+// transform_point, so scale must be non zero on every axis.
+transform_point_inverse :: proc(t: Transform, p: Vec3) -> Vec3 {
+	return linalg.quaternion_mul_vector3(linalg.quaternion_inverse(t.rot), p - t.pos) / t.scale
+}

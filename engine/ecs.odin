@@ -30,6 +30,7 @@ World :: struct {
 	camera:          Pool(Camera),
 	drawable_upload: Pool(DrawableUpload),
 	drawable:        Pool(Drawable),
+	aabb:            Pool(Aabb),
 	// The game's own state, including any component pools it keys by Entity.
 	// Cast by user systems; the engine only hands it back.
 	user_ptr:        rawptr,
@@ -65,6 +66,7 @@ entity_destroy :: proc(w: ^World, e: Entity) {
 	pool_remove(&w.camera, e)
 	pool_remove(&w.drawable_upload, e)
 	pool_remove(&w.drawable, e)
+	pool_remove(&w.aabb, e)
 	if w.on_destroy != nil {
 		w.on_destroy(w, e)
 	}
