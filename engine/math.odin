@@ -93,3 +93,11 @@ transform_point :: proc(t: Transform, p: Vec3) -> Vec3 {
 transform_point_inverse :: proc(t: Transform, p: Vec3) -> Vec3 {
 	return linalg.quaternion_mul_vector3(linalg.quaternion_inverse(t.rot), p - t.pos) / t.scale
 }
+
+// Maps a direction from world space into an entity's local space. Like
+// transform_point_inverse without the translation, so it stays a direction.
+// Non uniform scale leaves it unnormalized, which keeps ray parameters the
+// same in both spaces.
+transform_vector_inverse :: proc(t: Transform, v: Vec3) -> Vec3 {
+	return linalg.quaternion_mul_vector3(linalg.quaternion_inverse(t.rot), v) / t.scale
+}

@@ -10,15 +10,17 @@ import "vendor:sdl3"
 // The game's state, reached from app.world.user_ptr. Pools are keyed by the
 // same Entity ids the engine hands out.
 Game :: struct {
-	input:       engine.Pool(InputValues),
-	player:      engine.Pool(Player),
-	movement:    engine.Pool(Movement),
-	mouse_look:  engine.Pool(MouseLook),
+	input:        engine.Pool(InputValues),
+	player:       engine.Pool(Player),
+	movement:     engine.Pool(Movement),
+	mouse_look:   engine.Pool(MouseLook),
+	interactor:   engine.Pool(Interactor),
+	interactable: engine.Pool(Interactable),
 	// True while the pause menu is up, which frees the mouse and stops the
 	// player reading input.
-	menu_open:   bool,
+	menu_open:    bool,
 	// Escape's state last frame, so the menu toggles on the press edge.
-	escape_down: bool,
+	escape_down:  bool,
 }
 
 GAME_SYSTEMS := [?]engine.System {
@@ -26,6 +28,7 @@ GAME_SYSTEMS := [?]engine.System {
 	player_input_system,
 	player_look_system,
 	player_move_system,
+	interactor_system,
 }
 
 // Drops e from the game's pools. Hooked to world.on_destroy.
@@ -35,6 +38,8 @@ game_on_destroy :: proc(w: ^engine.World, e: engine.Entity) {
 	engine.pool_remove(&g.player, e)
 	engine.pool_remove(&g.movement, e)
 	engine.pool_remove(&g.mouse_look, e)
+	engine.pool_remove(&g.interactor, e)
+	engine.pool_remove(&g.interactable, e)
 }
 
 // What an entity wants to do this frame, read off the raw device state.

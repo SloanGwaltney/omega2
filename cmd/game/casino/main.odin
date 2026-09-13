@@ -9,6 +9,7 @@ import "core:slice"
 EYE_HEIGHT :: 1.7
 MOVE_SPEED :: 25.0
 MOUSE_SENSITIVITY :: 0.002
+INTERACT_REACH :: 3.0
 FLOOR_HALF :: 50.0
 FLOOR_COLOR :: engine.Vec4{0.15, 0.35, 0.2, 1}
 CROSSHAIR_LENGTH :: 18.0
@@ -66,6 +67,7 @@ main :: proc() {
 	engine.pool_add(&game.player, player, Player{})
 	engine.pool_add(&game.movement, player, Movement{speed = MOVE_SPEED})
 	engine.pool_add(&game.mouse_look, player, MouseLook{sensitivity = MOUSE_SENSITIVITY})
+	engine.pool_add(&game.interactor, player, Interactor{reach = INTERACT_REACH})
 
 	floor := engine.entity_create(app.world)
 	engine.pool_add(&app.world.transform, floor, engine.transform_identity())

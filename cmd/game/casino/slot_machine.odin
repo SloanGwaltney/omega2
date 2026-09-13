@@ -88,5 +88,6 @@ slot_machine_create :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity
 		},
 	)
 	engine.pool_add(&app.world.aabb, e, engine.Aabb{{-W, 0, -D}, {W, H, D}})
+	engine.pool_add(&(^Game)(app.world.user_ptr).interactable, e, Interactable{})
 	return e
 }
