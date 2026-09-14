@@ -1,6 +1,6 @@
 # Omega 2
 
-A fun simple FPS game and engine
+A small 3D engine in Odin and `casino`, the game built on it.
 
 ## Requirements
 
@@ -27,14 +27,31 @@ than a runtime one. Adding a size means one entry in `FontSize` and its pixel
 height in `FONT_PIXEL_HEIGHTS`; if the atlas overflows, raise
 `FONT_ATLAS_SIZE`.
 
+## Engine and game
+
+`engine/` is a general purpose library: window, wgpu renderer, ui, ecs storage,
+input, collision, profiling. It knows nothing about any particular game.
+
+`cmd/` holds the executables built on it. `cmd/game/casino` is the casino sim;
+`cmd/demos/*` are harnesses like the cube stress test.
+
+The seam is three fields on the engine, all set before `run_app`:
+
+- `app.user_systems` — the game's systems, run every frame after the engine's
+  `PRE_SYSTEMS` and before `UPDATE_SYSTEMS`.
+- `app.world.user_ptr` — the game's own state, including its component pools.
+  The engine only stores it; systems cast it back.
+- `app.world.on_destroy` — called by `entity_destroy` after the engine pools
+  are cleared, so the game can clear its own.
+
+Entity ids come from the engine, so a game pool keyed by `Entity` lines up
+with the engine pools for free. `cmd/game/casino/player.odin` wires all three.
+
 ## Adding a component
 
-A component is a plain struct stored in a `Pool` on the `World`. Three edits:
-
-1. Define the struct next to the code that uses it.
-2. Add a `Pool(T)` field to `World` in `engine/ecs.odin`.
-3. Clear it in `entity_destroy` — every pool must be listed there or a
-   destroyed entity keeps stale components.
+A component is a plain struct stored in a `Pool` on either the engine's
+`World` or the game's own state. Same `pool_add` / `pool_get` / `pool_remove`
+either way; only where the pool lives and where it is cleared differ.
 
 ```odin
 Health :: struct {
@@ -43,27 +60,46 @@ Health :: struct {
 }
 ```
 
+**Game component** — the usual case:
+
+1. Define the struct next to the code that uses it, in `cmd/game/casino`.
+2. Add a `engine.Pool(T)` field to `Game` in `player.odin`.
+3. Clear it in `game_on_destroy`.
+
+**Engine component** — only for something the renderer or another engine
+system reads, like `Transform` or `Aabb`:
+
+1. Define the struct in `engine/`.
+2. Add a `Pool(T)` field to `World` in `engine/ecs.odin`.
+3. Clear it in `entity_destroy`.
+
+Missing either clear leaves a destroyed entity holding stale components.
+
 Pools are direct mapped: `data` is indexed by entity id with a parallel `has`
 array, so every pool costs `MAX_ENTITIES * size_of(T)` whether or not anything
-uses it. Keep components small.
+uses it. Keep components small; `Game` is heap allocated for the same reason
+`World` is.
 
-Attach with `pool_add(&w.health, e, Health{100, 100})`, read with `pool_get`,
+Attach with `pool_add(&g.health, e, Health{100, 100})`, read with `pool_get`,
 which returns `nil` when the entity has none. Pools are zeroed, so a component
 whose zero value is not a valid state needs a seeding helper — see
 `transform_identity`.
 
 ## Adding a system
 
-A system is a `proc(app: ^App)` listed in `engine/systems.odin`. Add it to
-`UPDATE_SYSTEMS` or `RENDER_SYSTEMS`; the split is cosmetic grouping, each
-frame runs every entry of both in order.
+A system is an `engine.System`, that is a `proc(app: ^App)`. Every system gets
+the whole app, so game systems read engine components and vice versa.
+
+**Game system**: write it in `cmd/game/casino` and add it to `GAME_SYSTEMS` in
+`player.odin`. Order within the list is the order it runs.
 
 ```odin
-damage_system :: proc(app: ^App) {
+damage_system :: proc(app: ^engine.App) {
 	w := app.world
+	g := (^Game)(w.user_ptr)
 	for i in 0 ..< w.count {
-		e := Entity(i)
-		health := pool_get(&w.health, e)
+		e := engine.Entity(i)
+		health := engine.pool_get(&g.health, e)
 		if health == nil {
 			continue
 		}
@@ -72,16 +108,20 @@ damage_system :: proc(app: ^App) {
 }
 ```
 
+**Engine system**: add it to `UPDATE_SYSTEMS` or `RENDER_SYSTEMS` in
+`engine/systems.odin`. Put it here only if it is game agnostic.
+
+Each frame `run_app` runs `PRE_SYSTEMS` (timing and input), then
+`app.user_systems`, then `UPDATE_SYSTEMS`, then `RENDER_SYSTEMS`, every list in
+order.
+
 Iterating means walking `0 ..< w.count` and skipping entities that lack the
 component. Systems needing two components fetch both and skip when either is
-`nil`, as `camera_view_proj` does.
+`nil`, as `player_move_system` does.
 
-`app.user_update` runs once per frame before either list. It is not an
-engine/game seam — the engine is purpose built for this game and no such seam
-exists yet. It is an escape hatch so integration level harnesses can drive the
-world without their setup being baked into the engine: the cube stress demo
-spawns and spins its cubes from there, which keeps a performance test out of
-`engine/`.
+Ui is the other hook: set `app.ui_callback` to a
+`proc(app: ^App, ui: ^Ui)` and the engine's `ui_system` calls it each frame to
+emit that frame's geometry. `casino_ui` is the game's.
 
 ## Performance testing
 
