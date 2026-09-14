@@ -35,7 +35,7 @@ input, collision, profiling. It knows nothing about any particular game.
 `cmd/` holds the executables built on it. `cmd/game/casino` is the casino sim;
 `cmd/demos/*` are harnesses like the cube stress test.
 
-The seam is three fields on the engine, all set before `run_app`:
+The seam is four fields on the engine, all set before `run_app`:
 
 - `app.user_systems` — the game's systems, run every frame after the engine's
   `PRE_SYSTEMS` and before `UPDATE_SYSTEMS`.
@@ -43,9 +43,13 @@ The seam is three fields on the engine, all set before `run_app`:
   The engine only stores it; systems cast it back.
 - `app.world.on_destroy` — called by `entity_destroy` after the engine pools
   are cleared, so the game can clear its own.
+- `app.ui_callback` — a `proc(app: ^App, ui: ^Ui)` the engine's `ui_system`
+  calls each frame to emit that frame's ui geometry. `casino_ui` is the
+  game's.
 
 Entity ids come from the engine, so a game pool keyed by `Entity` lines up
-with the engine pools for free. `cmd/game/casino/player.odin` wires all three.
+with the engine pools for free. `cmd/game/casino/main.odin` and `player.odin`
+wire all four.
 
 ## Adding a component
 
@@ -118,10 +122,6 @@ order.
 Iterating means walking `0 ..< w.count` and skipping entities that lack the
 component. Systems needing two components fetch both and skip when either is
 `nil`, as `player_move_system` does.
-
-Ui is the other hook: set `app.ui_callback` to a
-`proc(app: ^App, ui: ^Ui)` and the engine's `ui_system` calls it each frame to
-emit that frame's geometry. `casino_ui` is the game's.
 
 ## Performance testing
 
