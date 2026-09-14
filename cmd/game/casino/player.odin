@@ -17,6 +17,7 @@ Game :: struct {
 	interactor:    engine.Pool(Interactor),
 	interactable:  engine.Pool(Interactable),
 	slot_machine:  engine.Pool(SlotMachine),
+	patron:        engine.Pool(Patron),
 	// The day clock, shared by the whole game.
 	clock:         Clock,
 	// True while the pause menu is up, which frees the mouse and stops the
@@ -42,6 +43,7 @@ GAME_SYSTEMS := [?]engine.System {
 	player_look_system,
 	player_move_system,
 	interactor_system,
+	patron_system,
 }
 
 // Drops e from the game's pools. Hooked to world.on_destroy.
@@ -54,6 +56,7 @@ game_on_destroy :: proc(w: ^engine.World, e: engine.Entity) {
 	engine.pool_remove(&g.interactor, e)
 	engine.pool_remove(&g.interactable, e)
 	engine.pool_remove(&g.slot_machine, e)
+	engine.pool_remove(&g.patron, e)
 }
 
 // What an entity wants to do this frame, read off the raw device state.

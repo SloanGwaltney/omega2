@@ -77,7 +77,9 @@ SLOT_INDICES := [?]engine.Index {
 // it, which is what the player's ray hits.
 SlotMachine :: struct {
 	// Percent of stakes this machine pays back, driven by its screen slider.
-	rtp: f32,
+	rtp:    f32,
+	// Patron playing this machine, or nil while it is free.
+	patron: Maybe(engine.Entity),
 }
 
 // Spawns a slot machine standing on the floor at pos.
