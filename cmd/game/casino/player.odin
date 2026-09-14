@@ -20,6 +20,8 @@ Game :: struct {
 	patron:        engine.Pool(Patron),
 	// The day clock, shared by the whole game.
 	clock:         Clock,
+	// The house's money, grown by patron stakes and drained by their wins.
+	bank:          f32,
 	// True while the pause menu is up, which frees the mouse and stops the
 	// player reading input.
 	menu_open:     bool,
@@ -44,6 +46,7 @@ GAME_SYSTEMS := [?]engine.System {
 	player_move_system,
 	interactor_system,
 	patron_system,
+	patron_play_system,
 }
 
 // Drops e from the game's pools. Hooked to world.on_destroy.

@@ -10,6 +10,8 @@ DAY_OPEN_HOUR :: 8.0
 DAY_CLOSE_HOUR :: 20.0
 // Real seconds spent per in game hour.
 REAL_SECONDS_PER_HOUR :: 5.0
+// In game minutes that pass per real second.
+GAME_MINUTES_PER_REAL_SECOND :: 60.0 / REAL_SECONDS_PER_HOUR
 
 CLOCK_MARGIN :: 16.0
 CLOCK_COLOR :: engine.Vec4{1, 1, 1, 1}

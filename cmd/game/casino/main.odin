@@ -3,6 +3,7 @@
 package main
 
 import "../../../engine"
+import "core:fmt"
 import "core:math"
 import "core:slice"
 
@@ -17,6 +18,8 @@ CROSSHAIR_THICKNESS :: 2.0
 CROSSHAIR_COLOR :: engine.Vec4{1, 1, 1, 0.75}
 PROMPT_OFFSET :: 48.0
 PROMPT_COLOR :: engine.Vec4{1, 1, 1, 1}
+BANK_MARGIN :: 16.0
+BANK_COLOR :: engine.Vec4{1, 0.9, 0.4, 1}
 
 FLOOR_VERTICES := [?]engine.Vertex {
 	{pos = {-FLOOR_HALF, 0, FLOOR_HALF}, color = FLOOR_COLOR},
@@ -49,6 +52,7 @@ casino_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 	)
 	prompt_ui(app, ui)
 	clock_ui(app, ui)
+	bank_ui(app, ui)
 	menu_ui(app, ui)
 }
 
@@ -64,6 +68,14 @@ prompt_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 		f32(app.surface_config.height) / 2 + PROMPT_OFFSET,
 	}
 	engine.ui_text(app, ui, pos, .Large, g.prompt, PROMPT_COLOR)
+}
+
+// Draws the house's bank in the top right corner.
+bank_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
+	g := (^Game)(app.world.user_ptr)
+	text := fmt.tprintf("$%.0f", g.bank)
+	x := f32(app.surface_config.width) - BANK_MARGIN - engine.font_measure(&app.font, .Large, text)
+	engine.ui_text(app, ui, {x, BANK_MARGIN}, .Large, text, BANK_COLOR)
 }
 
 main :: proc() {

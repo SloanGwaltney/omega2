@@ -4,6 +4,7 @@ package main
 
 import "../../../engine"
 import "core:math/linalg"
+import "core:math/rand"
 import "core:slice"
 
 PATRON_HALF :: 0.3
@@ -13,6 +14,10 @@ PATRON_SPEED :: 2.0
 PATRON_SEAT_DISTANCE :: 0.9
 // Distance at which a patron counts as arrived.
 PATRON_ARRIVE_EPSILON :: 0.05
+// Plays a patron makes per in game minute once it is at its machine.
+PATRON_PLAYS_PER_MINUTE :: 6.0
+// Chance a patron walks out after any one play.
+PATRON_LEAVE_CHANCE :: 0.05
 
 PATRON_COLOR :: engine.Vec4{0.2, 0.4, 0.75, 1}
 PATRON_TOP_COLOR :: engine.Vec4{0.28, 0.5, 0.85, 1}
@@ -46,11 +51,15 @@ PATRON_INDICES := [?]engine.Index {
 // patron_system walks.
 Patron :: struct {
 	// World units travelled per second.
-	speed:   f32,
+	speed:            f32,
 	// Machine this patron has claimed, or nil while it is still looking.
-	machine: Maybe(engine.Entity),
+	machine:          Maybe(engine.Entity),
 	// True once the patron has reached its machine.
-	arrived: bool,
+	arrived:          bool,
+	// Plays made per in game minute while at a machine.
+	plays_per_minute: f32,
+	// In game minutes banked since the last play.
+	play_timer:       f32,
 }
 
 // Spawns a patron standing on the floor at pos.
@@ -69,7 +78,11 @@ patron_create :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity {
 		},
 	)
 	g := (^Game)(app.world.user_ptr)
-	engine.pool_add(&g.patron, e, Patron{speed = PATRON_SPEED})
+	engine.pool_add(
+		&g.patron,
+		e,
+		Patron{speed = PATRON_SPEED, plays_per_minute = PATRON_PLAYS_PER_MINUTE},
+	)
 	return e
 }
 
@@ -141,4 +154,38 @@ patron_claim :: proc(
 		return candidate, true
 	}
 	return 0, false
+}
+
+// Plays the machine of every seated patron at its own rate, moving each
+// stake into the house's bank and paying wins back out. Held while the menu
+// is up or the day has not started.
+patron_play_system :: proc(app: ^engine.App) {
+	w := app.world
+	g := (^Game)(w.user_ptr)
+	if g.menu_open || !g.clock.running {
+		return
+	}
+	minutes := f32(w.delta_time) / 1e9 * GAME_MINUTES_PER_REAL_SECOND
+	for i in 0 ..< w.count {
+		patron := engine.pool_get(&g.patron, engine.Entity(i))
+		if patron == nil || !patron.arrived {
+			continue
+		}
+		machine, claimed := patron.machine.?
+		if !claimed {
+			continue
+		}
+		slot := engine.pool_get(&g.slot_machine, machine)
+		patron.play_timer += minutes
+		interval := 1 / patron.plays_per_minute
+		for patron.play_timer >= interval {
+			patron.play_timer -= interval
+			g.bank += SLOT_STAKE - slot_machine_play(slot)
+			if rand.float32() < PATRON_LEAVE_CHANCE {
+				slot.patron = nil
+				engine.entity_destroy(w, engine.Entity(i))
+				break
+			}
+		}
+	}
 }

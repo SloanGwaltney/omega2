@@ -5,6 +5,7 @@ package main
 
 import "../../../engine"
 import "core:fmt"
+import "core:math/rand"
 import "core:slice"
 
 SLOT_HALF_WIDTH :: 0.5
@@ -112,6 +113,22 @@ slot_machine_create :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity
 @(private = "file")
 slot_machine_hover :: proc(app: ^engine.App, e: engine.Entity) {
 	(^Game)(app.world.user_ptr).prompt = "[E] Play"
+}
+
+// Stake a single play costs.
+SLOT_STAKE :: 10.0
+// Multiple of the stake a winning play pays back.
+SLOT_WIN_MULTIPLIER :: 2.0
+
+// Rolls one play on slot and returns what it paid out, which is either the
+// stake times SLOT_WIN_MULTIPLIER or nothing. The win chance is whatever
+// makes the average payout match the machine's return to player.
+slot_machine_play :: proc(slot: ^SlotMachine) -> f32 {
+	win_chance := slot.rtp / 100 / SLOT_WIN_MULTIPLIER
+	if rand.float32() < win_chance {
+		return SLOT_STAKE * SLOT_WIN_MULTIPLIER
+	}
+	return 0
 }
 
 // Opens the machine's screen, which frees the mouse for its ui.
