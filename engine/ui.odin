@@ -67,8 +67,20 @@ UI_BUTTON_TEXT_COLOR :: Vec4{1, 1, 1, 1}
 // Pushes a button filling r with text centred in it, and returns true on the
 // frame the left button goes down inside it.
 ui_button :: proc(app: ^App, ui: ^Ui, r: Rect, size: FontSize, text: string) -> bool {
+	return ui_button_colored(app, ui, r, size, text, UI_BUTTON_COLOR, UI_BUTTON_HOVER_COLOR)
+}
+
+// Pushes a button drawn in color, or hover_color while the cursor is over it.
+ui_button_colored :: proc(
+	app: ^App,
+	ui: ^Ui,
+	r: Rect,
+	size: FontSize,
+	text: string,
+	color, hover_color: Vec4,
+) -> bool {
 	hovered := rect_contains(r, app.input.mouse_pos)
-	ui_rect(ui, r, UI_BUTTON_HOVER_COLOR if hovered else UI_BUTTON_COLOR)
+	ui_rect(ui, r, hover_color if hovered else color)
 
 	face := &app.render.font.faces[size]
 	pos := Vec2 {

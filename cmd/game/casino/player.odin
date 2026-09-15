@@ -28,6 +28,13 @@ Game :: struct {
 	// Machine whose screen is up, which frees the mouse and stops the player
 	// the same way the menu does. Nil while the player is walking.
 	open_machine:  Maybe(engine.Entity),
+	// True while the buy menu is up, which frees the mouse the same way the
+	// pause menu does.
+	shop_open:     bool,
+	// Cells of the buy menu showing their stats instead of their picture.
+	shop_details:  [len(SHOP_ITEMS)]bool,
+	// The buy menu key's state last frame, so it toggles on the press edge.
+	shop_down:     bool,
 	// Escape's state last frame, so the menu toggles on the press edge.
 	escape_down:   bool,
 	// The interact key's state last frame, so interaction fires on the press
@@ -40,6 +47,7 @@ Game :: struct {
 
 GAME_SYSTEMS := [?]engine.System {
 	menu_system,
+	shop_system,
 	clock_system,
 	player_input_system,
 	player_look_system,
@@ -110,7 +118,7 @@ player_input_system :: proc(app: ^engine.App) {
 
 	movement, look: engine.Vec2
 	interact: bool
-	if !g.menu_open && g.open_machine == nil {
+	if !g.menu_open && !g.shop_open && g.open_machine == nil {
 		if keys[sdl3.Scancode.D] do movement.x += 1
 		if keys[sdl3.Scancode.A] do movement.x -= 1
 		if keys[sdl3.Scancode.W] do movement.y += 1

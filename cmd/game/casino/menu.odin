@@ -22,6 +22,10 @@ menu_system :: proc(app: ^engine.App) {
 		slot_machine_set_open(app, nil)
 		return
 	}
+	if g.shop_open {
+		shop_set_open(app, false)
+		return
+	}
 	menu_set_open(app, !g.menu_open)
 }
 

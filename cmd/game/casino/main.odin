@@ -54,6 +54,7 @@ casino_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 	clock_ui(app, ui)
 	bank_ui(app, ui)
 	menu_ui(app, ui)
+	shop_ui(app, ui)
 }
 
 // Draws the prompt raised by whatever the player is aimed at, centred below
