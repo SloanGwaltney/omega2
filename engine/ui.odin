@@ -9,6 +9,7 @@ import "vendor:wgpu"
 
 MAX_UI_VERTICES :: 4096
 MAX_UI_INDICES :: 6144
+MAX_UI_BATCHES :: 64
 
 // Axis aligned rectangle in pixels, origin at the top left of the window.
 Rect :: struct {
@@ -18,15 +19,25 @@ Rect :: struct {
 // Emits a frame of ui. Called by ui_system with a cleared Ui to push into.
 UiCallback :: proc(app: ^App, ui: ^Ui)
 
+// A run of indices drawn with one texture bound. A nil texture means the font
+// atlas, which is what flat quads and text sample.
+UiBatch :: struct {
+	texture:     ^Texture,
+	index_start: u32,
+	index_count: u32,
+}
+
 // This frame's ui geometry, refilled from scratch each frame.
 Ui :: struct {
 	vertices:     [MAX_UI_VERTICES]UiVertex,
 	indices:      [MAX_UI_INDICES]Index,
 	vertex_count: u32,
 	index_count:  u32,
-	// Sampled by every quad this frame. Left nil the ui samples the font atlas.
-	texture:      ^Texture,
-	// Where the white texel sits in the bound texture, used by flat quads.
+	// This frame's draw runs in push order, one per contiguous stretch of
+	// quads sharing a texture.
+	batches:      [MAX_UI_BATCHES]UiBatch,
+	batch_count:  u32,
+	// Where the white texel sits in the font atlas, used by flat quads.
 	white_uv:     Vec2,
 	// Widget dragging the mouse, identified by the pointer it drives. Held
 	// across frames until the button is released.
@@ -38,7 +49,7 @@ ui_system :: proc(app: ^App) {
 	ui := &app.ui
 	ui.vertex_count = 0
 	ui.index_count = 0
-	ui.texture = nil
+	ui.batch_count = 0
 	ui.white_uv = app.render.font.white_uv
 	if !app.input.mouse_down {
 		ui.active = nil
@@ -138,8 +149,7 @@ ui_grid_cell :: proc(r: Rect, cols: int, cell_h, gap: f32, index: int) -> Rect {
 	return {r.x + col * (w + gap), r.y + row * (cell_h + gap), w, cell_h}
 }
 
-// Pushes text with its top left corner at pos, and returns the pen's end. Only
-// draws when the font atlas is bound, which is the default.
+// Pushes text with its top left corner at pos, and returns the pen's end.
 ui_text :: proc(app: ^App, ui: ^Ui, pos: Vec2, size: FontSize, text: string, color: Vec4) -> Vec2 {
 	face := &app.render.font.faces[size]
 	pen := Vec2{pos.x, pos.y + face.ascent}
@@ -156,11 +166,19 @@ ui_text :: proc(app: ^App, ui: ^Ui, pos: Vec2, size: FontSize, text: string, col
 	return pen
 }
 
-// Pushes a rectangle sampling uv of ui.texture, tinted by color. The uv rect is
-// in texture space, origin at the top left.
-ui_textured_rect :: proc(ui: ^Ui, r: Rect, uv: Rect, color: Vec4) {
+// Pushes r sampling all of texture, tinted by color. Pass nil to sample the
+// font atlas.
+ui_image :: proc(ui: ^Ui, r: Rect, texture: ^Texture, color := Vec4{1, 1, 1, 1}) {
+	ui_textured_rect(ui, r, {0, 0, 1, 1}, color, texture)
+}
+
+// Pushes a rectangle sampling uv of texture, tinted by color. The uv rect is in
+// texture space, origin at the top left. A nil texture samples the font atlas,
+// which is what flat quads and text want.
+ui_textured_rect :: proc(ui: ^Ui, r: Rect, uv: Rect, color: Vec4, texture: ^Texture = nil) {
 	assert(ui.vertex_count + 4 <= MAX_UI_VERTICES, "out of ui vertices")
 	assert(ui.index_count + 6 <= MAX_UI_INDICES, "out of ui indices")
+	ui_open_batch(ui, texture)
 
 	base := ui.vertex_count
 	ui.vertices[base + 0] = {pos = {r.x, r.y, 0}, color = color, uv = {uv.x, uv.y}}
@@ -178,9 +196,21 @@ ui_textured_rect :: proc(ui: ^Ui, r: Rect, uv: Rect, color: Vec4) {
 		ui.indices[ui.index_count + u32(i)] = base + offset
 	}
 	ui.index_count += 6
+	ui.batches[ui.batch_count - 1].index_count += 6
 }
 
-// Draws this frame's ui as one call, on top of the world.
+// Extends the open batch when it already binds texture, otherwise starts one.
+@(private)
+ui_open_batch :: proc(ui: ^Ui, texture: ^Texture) {
+	if ui.batch_count > 0 && ui.batches[ui.batch_count - 1].texture == texture {
+		return
+	}
+	assert(ui.batch_count < MAX_UI_BATCHES, "out of ui batches")
+	ui.batches[ui.batch_count] = {texture = texture, index_start = ui.index_count}
+	ui.batch_count += 1
+}
+
+// Draws this frame's ui on top of the world, one call per batch in push order.
 draw_ui_system :: proc(app: ^App) {
 	if app.ui.index_count == 0 {
 		return
@@ -190,7 +220,10 @@ draw_ui_system :: proc(app: ^App) {
 	wgpu.RenderPassEncoderSetVertexBuffer(pass, 0, app.render.ui_vertices.handle, 0, wgpu.WHOLE_SIZE)
 	wgpu.RenderPassEncoderSetIndexBuffer(pass, app.render.ui_indices.handle, INDEX_FORMAT, 0, wgpu.WHOLE_SIZE)
 	wgpu.RenderPassEncoderSetBindGroup(pass, 0, app.render.frame_bind_group)
-	texture := app.ui.texture if app.ui.texture != nil else &app.render.font.atlas
-	wgpu.RenderPassEncoderSetBindGroup(pass, 1, texture.bind_group)
-	wgpu.RenderPassEncoderDrawIndexed(pass, app.ui.index_count, 1, 0, 0, 0)
+
+	for batch in app.ui.batches[:app.ui.batch_count] {
+		texture := batch.texture if batch.texture != nil else &app.render.font.atlas
+		wgpu.RenderPassEncoderSetBindGroup(pass, 1, texture.bind_group)
+		wgpu.RenderPassEncoderDrawIndexed(pass, batch.index_count, 1, batch.index_start, 0, 0)
+	}
 }
