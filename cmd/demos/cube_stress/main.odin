@@ -1,5 +1,5 @@
 // Cube stress demo: pulls the camera back, then spawns cubes at a fixed rate
-// up to MAX_CUBES, each at a random transform inside the frustum, logging the
+// up to MAX_CUBES, each at a random transform inside the frustum, showing the
 // frame rate as the count climbs.
 package main
 
@@ -21,6 +21,12 @@ SPIN_Y :: 1.3
 // World space depth range cubes are scattered over, in front of the camera.
 NEAR_Z :: 20
 FAR_Z :: -40
+
+// Top left stats label.
+STATS_MARGIN :: 8
+STATS_COLOR :: engine.Vec4{1, 1, 1, 1}
+STATS_PANEL_COLOR :: engine.Vec4{0, 0, 0, 0.6}
+STATS_PANEL_W :: 200
 
 CUBE_VERTICES := [?]engine.Vertex {
 	{pos = {-0.5, -0.5, 0.5}, color = {0, 0, 1, 1}},
@@ -55,13 +61,13 @@ main :: proc() {
 	engine.pool_add(&app.world.camera, camera, engine.Camera{fov_y = FOV_Y, near = 0.1, far = 200})
 
 	app.user_systems = DEMO_SYSTEMS[:]
+	app.ui_callback = demo_ui
 	engine.run_app(app)
 }
 
 DEMO_SYSTEMS := [?]engine.System{demo_update}
 
-// Spawns SPAWN_PER_SECOND cubes a second until MAX_CUBES exist, and logs the
-// frame rate alongside the live cube count.
+// Spawns SPAWN_PER_SECOND cubes a second until MAX_CUBES exist.
 demo_update :: proc(app: ^engine.App) {
 	dt := f64(app.world.delta_time) / 1e9
 	spawn_debt += dt * SPAWN_PER_SECOND
@@ -71,7 +77,21 @@ demo_update :: proc(app: ^engine.App) {
 		spawned += 1
 	}
 	spin_cubes(app, f32(dt))
-	fmt.printfln("fps %.0f cubes %d", dt > 0 ? 1 / dt : 0, spawned)
+}
+
+// Draws the frame rate, frame time and cube count in the top left corner.
+demo_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
+	dt := f64(app.world.delta_time) / 1e9
+	line := engine.font_line_height(&app.render.font, .Large)
+	engine.ui_rect(ui, {0, 0, STATS_PANEL_W, STATS_MARGIN * 2 + line * 3}, STATS_PANEL_COLOR)
+	lines := [?]string {
+		fmt.tprintf("fps %.0f", dt > 0 ? 1 / dt : 0),
+		fmt.tprintf("dt %.2fms", dt * 1000),
+		fmt.tprintf("cubes %d", spawned),
+	}
+	for text, i in lines {
+		engine.ui_text(app, ui, {STATS_MARGIN, STATS_MARGIN + line * f32(i)}, .Large, text, STATS_COLOR)
+	}
 }
 
 // Spins every cube, so the transforms are rewritten every frame rather than
