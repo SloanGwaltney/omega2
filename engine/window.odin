@@ -1,5 +1,7 @@
 package engine
 
+import "base:runtime"
+import "core:fmt"
 import "vendor:sdl3"
 import "vendor:wgpu"
 import "vendor:wgpu/sdl3glue"
@@ -45,7 +47,11 @@ create_window :: proc(app: ^App) {
 		&{compatibleSurface = app.window.surface},
 		{callback = on_adapter, userdata1 = app},
 	)
-	wgpu.AdapterRequestDevice(app.window.adapter, nil, {callback = on_device, userdata1 = app})
+	wgpu.AdapterRequestDevice(
+		app.window.adapter,
+		&{uncapturedErrorCallbackInfo = {callback = on_uncaptured_error}},
+		{callback = on_device, userdata1 = app},
+	)
 
 	app.window.queue = wgpu.DeviceGetQueue(app.window.device)
 
@@ -122,4 +128,19 @@ on_device :: proc "c" (
 		panic_contextless("failed to acquire wgpu device")
 	}
 	(cast(^App)userdata1).window.device = device
+}
+
+// Panics on any wgpu validation or out of memory error, which are otherwise
+// silent and leave the offending draw missing from the frame.
+@(private)
+on_uncaptured_error :: proc "c" (
+	device: ^wgpu.Device,
+	type: wgpu.ErrorType,
+	message: wgpu.StringView,
+	userdata1: rawptr,
+	userdata2: rawptr,
+) {
+	context = runtime.default_context()
+	fmt.eprintln("wgpu error:", type, message)
+	panic("wgpu error")
 }

@@ -74,6 +74,14 @@ SLOT_INDICES := [?]engine.Index {
 	20, 21, 22, 20, 22, 23,
 }
 
+// The cabinet, shared by the spawned machine and its shop icon.
+SLOT_MODEL := Model {
+	pipeline = .Unlit,
+	vertices = slice.to_bytes(SLOT_VERTICES[:]),
+	indices  = SLOT_INDICES[:],
+	bounds   = {{-W, 0, -D}, {W, H, D}},
+}
+
 // A playable machine. Needs the drawable and Aabb slot_machine_create gives
 // it, which is what the player's ray hits.
 SlotMachine :: struct {
@@ -102,12 +110,12 @@ slot_machine_spawn :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity 
 		&app.world.drawable_upload,
 		e,
 		engine.DrawableUpload {
-			pipeline = .Unlit,
-			data = slice.to_bytes(SLOT_VERTICES[:]),
-			indices = SLOT_INDICES[:],
+			pipeline = SLOT_MODEL.pipeline,
+			data = SLOT_MODEL.vertices,
+			indices = SLOT_MODEL.indices,
 		},
 	)
-	engine.pool_add(&app.world.aabb, e, engine.Aabb{{-W, 0, -D}, {W, H, D}})
+	engine.pool_add(&app.world.aabb, e, SLOT_MODEL.bounds)
 	return e
 }
 

@@ -70,6 +70,34 @@ create_texture :: proc(
 		&size,
 	)
 
+	return texture_bind(app, label, handle)
+}
+
+// Creates an empty texture the renderer can draw into and the ui can sample.
+// Made in the surface format so the world pipelines render into it unchanged.
+create_render_target :: proc(app: ^App, label: string, width, height: u32) -> Texture {
+	handle := wgpu.DeviceCreateTexture(
+		app.window.device,
+		&{
+			label = label,
+			usage = {.TextureBinding, .RenderAttachment},
+			dimension = ._2D,
+			size = {width, height, 1},
+			format = app.window.config.format,
+			mipLevelCount = 1,
+			sampleCount = 1,
+		},
+	)
+	if handle == nil {
+		panic("failed to create render target")
+	}
+	return texture_bind(app, label, handle)
+}
+
+// Wraps an uploaded texture in the view, sampler and bind group that let any
+// sampling pipeline bind it at group 1.
+@(private)
+texture_bind :: proc(app: ^App, label: string, handle: wgpu.Texture) -> Texture {
 	view := wgpu.TextureCreateView(handle)
 	if view == nil {
 		panic("failed to create texture view")

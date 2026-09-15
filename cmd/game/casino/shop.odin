@@ -7,6 +7,16 @@ import "../../../engine"
 import "core:strings"
 import "vendor:sdl3"
 
+// An item's body: the mesh it is drawn with and the bounds it occupies. Shared
+// by the spawn that puts one in the world and the bake that pictures it in the
+// shop, so the two cannot drift.
+Model :: struct {
+	pipeline: engine.Pipeline,
+	vertices: []byte,
+	indices:  []engine.Index,
+	bounds:   engine.Aabb,
+}
+
 // One thing on offer. Stats are free text until the items are real, and an
 // item without a spawn cannot be bought yet.
 ShopItem :: struct {
@@ -15,6 +25,12 @@ ShopItem :: struct {
 	stats:       string,
 	// What buying one takes out of the bank.
 	cost:        f32,
+	// The item's body, or nil while the item has no model. Baked into icon by
+	// shop_bake_icons. A pointer because package globals are initialised in
+	// file order, so copying the model in here would copy it before it is set.
+	model:       ^Model,
+	// Picture of model shown in the item's cell, nil until it is baked.
+	icon:        ^engine.Texture,
 	// Spawns the item's body for the player to place, or nil while the item
 	// has no model.
 	spawn:       proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity,
@@ -24,25 +40,81 @@ ShopItem :: struct {
 
 SHOP_ITEMS := [?]ShopItem {
 	{
-		"Slots",
-		"Three reels, house edge.",
-		"Cost $2500\nRTP 80-99%\nFootprint 1x1",
-		2500,
-		slot_machine_spawn,
-		slot_machine_activate,
+		name = "Slots",
+		description = "Three reels, house edge.",
+		stats = "Cost $2500\nRTP 80-99%\nFootprint 1x1",
+		cost = 2500,
+		model = &SLOT_MODEL,
+		spawn = slot_machine_spawn,
+		activate = slot_machine_activate,
 	},
-	{"Blackjack", "Seats five players.", "Cost $6000\nEdge 0.5%\nFootprint 2x2", 6000, nil, nil},
-	{"Roulette", "Single zero wheel.", "Cost $9000\nEdge 2.7%\nFootprint 2x2", 9000, nil, nil},
-	{"Bar", "Holds patrons longer.", "Cost $4000\nUpkeep $50/day\nFootprint 3x1", 4000, nil, nil},
 	{
-		"Neon Sign",
-		"Draws more patrons in.",
-		"Cost $1200\nDraw +10%\nFootprint 1x1",
-		1200,
-		nil,
-		nil,
+		name = "Blackjack",
+		description = "Seats five players.",
+		stats = "Cost $6000\nEdge 0.5%\nFootprint 2x2",
+		cost = 6000,
 	},
-	{"Camera", "Catches cheating patrons.", "Cost $800\nCover 8m\nFootprint 1x1", 800, nil, nil},
+	{
+		name = "Roulette",
+		description = "Single zero wheel.",
+		stats = "Cost $9000\nEdge 2.7%\nFootprint 2x2",
+		cost = 9000,
+	},
+	{
+		name = "Bar",
+		description = "Holds patrons longer.",
+		stats = "Cost $4000\nUpkeep $50/day\nFootprint 3x1",
+		cost = 4000,
+	},
+	{
+		name = "Neon Sign",
+		description = "Draws more patrons in.",
+		stats = "Cost $1200\nDraw +10%\nFootprint 1x1",
+		cost = 1200,
+	},
+	{
+		name = "Camera",
+		description = "Catches cheating patrons.",
+		stats = "Cost $800\nCover 8m\nFootprint 1x1",
+		cost = 800,
+	},
+}
+
+// Baked at twice the picture's size, in its aspect so it is not stretched.
+SHOP_ICON_WIDTH :: u32((SHOP_CELL_WIDTH - SHOP_TEXT_GAP * 2) * 2)
+SHOP_ICON_HEIGHT :: u32(SHOP_PICTURE_HEIGHT * 2)
+
+// Renders every item that has a model into its shop icon. Run once at startup,
+// before the first frame.
+shop_bake_icons :: proc(app: ^engine.App) {
+	for &item in SHOP_ITEMS {
+		if item.model == nil {
+			continue
+		}
+		item.icon = new(engine.Texture)
+		item.icon^ = engine.icon_bake(
+			app,
+			item.name,
+			item.model.pipeline,
+			item.model.vertices,
+			item.model.indices,
+			item.model.bounds,
+			SHOP_ICON_WIDTH,
+			SHOP_ICON_HEIGHT,
+		)
+	}
+}
+
+// Releases the baked icons.
+shop_delete_icons :: proc() {
+	for &item in SHOP_ITEMS {
+		if item.icon == nil {
+			continue
+		}
+		engine.delete_texture(item.icon)
+		free(item.icon)
+		item.icon = nil
+	}
 }
 
 SHOP_COLS :: 3
@@ -120,7 +192,11 @@ shop_cell_ui :: proc(
 		y = engine.ui_text(app, ui, {x, y}, .Large, item.name, SHOP_TEXT_COLOR).y + SHOP_TEXT_GAP
 		shop_lines_ui(app, ui, {x, y, w, 0}, item.stats)
 	} else {
-		engine.ui_rect(ui, {x, y, w, SHOP_PICTURE_HEIGHT}, SHOP_PICTURE_COLOR)
+		picture := engine.Rect{x, y, w, SHOP_PICTURE_HEIGHT}
+		engine.ui_rect(ui, picture, SHOP_PICTURE_COLOR)
+		if item.icon != nil {
+			engine.ui_image(ui, picture, item.icon)
+		}
 		y += SHOP_PICTURE_HEIGHT + SHOP_TEXT_GAP
 		y = engine.ui_text(app, ui, {x, y}, .Large, item.name, SHOP_TEXT_COLOR).y + SHOP_TEXT_GAP
 		shop_lines_ui(app, ui, {x, y, w, 0}, item.description)
