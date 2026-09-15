@@ -45,6 +45,12 @@ Game :: struct {
 	prompt:        string,
 }
 
+// True while a ui that frees the mouse is up: the pause menu, the buy menu
+// or a machine's screen.
+game_ui_open :: proc(g: ^Game) -> bool {
+	return g.menu_open || g.shop_open || g.open_machine != nil
+}
+
 GAME_SYSTEMS := [?]engine.System {
 	menu_system,
 	shop_system,
@@ -118,7 +124,7 @@ player_input_system :: proc(app: ^engine.App) {
 
 	movement, look: engine.Vec2
 	interact: bool
-	if !g.menu_open && !g.shop_open && g.open_machine == nil {
+	if !game_ui_open(g) {
 		if keys[sdl3.Scancode.D] do movement.x += 1
 		if keys[sdl3.Scancode.A] do movement.x -= 1
 		if keys[sdl3.Scancode.W] do movement.y += 1

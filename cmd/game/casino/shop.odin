@@ -46,7 +46,7 @@ shop_system :: proc(app: ^engine.App) {
 	g := (^Game)(app.world.user_ptr)
 	down := app.input.keys[sdl3.Scancode.B]
 	defer g.shop_down = down
-	if !down || g.shop_down || g.menu_open || g.open_machine != nil {
+	if !down || g.shop_down || (game_ui_open(g) && !g.shop_open) {
 		return
 	}
 	shop_set_open(app, !g.shop_open)
