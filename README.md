@@ -137,7 +137,7 @@ some_system :: proc(app: ^App) {
 	// ...
 	{
 		zone_begin(.SomeUpload)
-		gpu_buffer_write(app, &app.models, data)
+		gpu_buffer_write(app, &app.render.models, data)
 	}
 }
 ```

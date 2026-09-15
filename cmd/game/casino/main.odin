@@ -36,8 +36,8 @@ casino_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 		slot_machine_ui(app, ui)
 		return
 	}
-	w := f32(app.surface_config.width)
-	h := f32(app.surface_config.height)
+	w := f32(app.window.config.width)
+	h := f32(app.window.config.height)
 	cx := w / 2 - CROSSHAIR_LENGTH / 2
 	cy := h / 2 - CROSSHAIR_LENGTH / 2
 	engine.ui_rect(
@@ -64,8 +64,8 @@ prompt_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 		return
 	}
 	pos := engine.Vec2 {
-		f32(app.surface_config.width) / 2 - engine.font_measure(&app.font, .Large, g.prompt) / 2,
-		f32(app.surface_config.height) / 2 + PROMPT_OFFSET,
+		f32(app.window.config.width) / 2 - engine.font_measure(&app.render.font, .Large, g.prompt) / 2,
+		f32(app.window.config.height) / 2 + PROMPT_OFFSET,
 	}
 	engine.ui_text(app, ui, pos, .Large, g.prompt, PROMPT_COLOR)
 }
@@ -74,7 +74,7 @@ prompt_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 bank_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 	g := (^Game)(app.world.user_ptr)
 	text := fmt.tprintf("$%.0f", g.bank)
-	x := f32(app.surface_config.width) - BANK_MARGIN - engine.font_measure(&app.font, .Large, text)
+	x := f32(app.window.config.width) - BANK_MARGIN - engine.font_measure(&app.render.font, .Large, text)
 	engine.ui_text(app, ui, {x, BANK_MARGIN}, .Large, text, BANK_COLOR)
 }
 

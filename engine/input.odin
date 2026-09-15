@@ -32,7 +32,7 @@ sample_input_system :: proc(app: ^App) {
 // Captures the mouse for relative aiming, hiding the cursor and freezing
 // input.mouse_pos, or releases it so the cursor and the ui can be used.
 set_mouse_captured :: proc(app: ^App, captured: bool) {
-	if !sdl3.SetWindowRelativeMouseMode(app.window, captured) {
+	if !sdl3.SetWindowRelativeMouseMode(app.window.handle, captured) {
 		panic("failed to set mouse capture")
 	}
 }

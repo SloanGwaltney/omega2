@@ -63,7 +63,7 @@ create_font :: proc(app: ^App) {
 			font_size                        = heights[size],
 			first_unicode_codepoint_in_range = FONT_FIRST_CHAR,
 			num_chars                        = FONT_CHAR_COUNT,
-			chardata_for_range               = &app.font.faces[size].chars[0],
+			chardata_for_range               = &app.render.font.faces[size].chars[0],
 		}
 	}
 	if truetype.PackFontRanges(&ctx, raw_data(MONO_TTF), 0, &ranges[0], len(ranges)) == 0 {
@@ -73,7 +73,7 @@ create_font :: proc(app: ^App) {
 
 	white := packed_height * FONT_ATLAS_SIZE
 	coverage[white] = 255
-	app.font.white_uv = {0.5 / FONT_ATLAS_SIZE, (f32(packed_height) + 0.5) / FONT_ATLAS_SIZE}
+	app.render.font.white_uv = {0.5 / FONT_ATLAS_SIZE, (f32(packed_height) + 0.5) / FONT_ATLAS_SIZE}
 
 	// The ui shader tints by the vertex color, so the atlas carries coverage in
 	// alpha and leaves the color channels white.
@@ -85,7 +85,7 @@ create_font :: proc(app: ^App) {
 		pixels[i * 4 + 2] = 255
 		pixels[i * 4 + 3] = value
 	}
-	app.font.atlas = create_texture(
+	app.render.font.atlas = create_texture(
 		app,
 		"font atlas",
 		pixels,
@@ -96,7 +96,7 @@ create_font :: proc(app: ^App) {
 
 	for size in FontSize {
 		descent, line_gap: f32
-		face := &app.font.faces[size]
+		face := &app.render.font.faces[size]
 		truetype.GetScaledFontVMetrics(
 			raw_data(MONO_TTF),
 			0,

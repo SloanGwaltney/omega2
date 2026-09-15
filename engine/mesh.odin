@@ -62,15 +62,15 @@ delete_mesh_storage :: proc(storage: ^MeshStorage) {
 // whose data was already uploaded is not uploaded twice; its offsets are reused.
 mesh_upload :: proc(app: ^App, layout: VertexLayout, data: []byte, indices: []Index) -> BufferOffsets {
 	key := MeshKey{layout, hash.fnv64a(data)}
-	if mesh, ok := app.meshes[key]; ok {
+	if mesh, ok := app.render.meshes[key]; ok {
 		return mesh.offsets
 	}
 
 	offsets := BufferOffsets {
 		vertex = gpu_buffer_push(app, vertex_buffer(app, layout), data),
-		index  = gpu_buffer_push(app, &app.indices, indices),
+		index  = gpu_buffer_push(app, &app.render.indices, indices),
 	}
-	app.meshes[key] = Mesh {
+	app.render.meshes[key] = Mesh {
 		layout  = layout,
 		data    = data,
 		indices = indices,
@@ -83,7 +83,7 @@ mesh_upload :: proc(app: ^App, layout: VertexLayout, data: []byte, indices: []In
 vertex_buffer :: proc(app: ^App, layout: VertexLayout) -> ^GpuBuffer {
 	switch layout {
 	case .Unlit:
-		return &app.unlit_vertices
+		return &app.render.unlit_vertices
 	}
 	panic("unknown vertex layout")
 }

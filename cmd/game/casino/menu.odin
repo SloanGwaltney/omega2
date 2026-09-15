@@ -33,8 +33,8 @@ menu_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 		return
 	}
 	r := engine.Rect {
-		f32(app.surface_config.width) / 2 - MENU_BUTTON_WIDTH / 2,
-		f32(app.surface_config.height) / 2 - MENU_BUTTON_HEIGHT / 2,
+		f32(app.window.config.width) / 2 - MENU_BUTTON_WIDTH / 2,
+		f32(app.window.config.height) / 2 - MENU_BUTTON_HEIGHT / 2,
 		MENU_BUTTON_WIDTH,
 		MENU_BUTTON_HEIGHT,
 	}

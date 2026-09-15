@@ -92,7 +92,7 @@ spin_cubes :: proc(app: ^engine.App, dt: f32) {
 // Creates a cube at a random position inside the camera frustum with a random
 // rotation and scale.
 spawn_cube :: proc(app: ^engine.App) {
-	aspect := f32(app.surface_config.width) / f32(app.surface_config.height)
+	aspect := f32(app.window.config.width) / f32(app.window.config.height)
 	z := rand.float32_range(FAR_Z, NEAR_Z)
 	half_h := math.tan(f32(FOV_Y) / 2) * (CAMERA_Z - z)
 	half_w := half_h * aspect

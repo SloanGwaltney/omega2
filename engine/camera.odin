@@ -14,7 +14,7 @@ Camera :: struct {
 // Panics when there is none, because nothing could be drawn without one.
 camera_view_proj :: proc(app: ^App) -> Mat4 {
 	w := app.world
-	aspect := f32(app.surface_config.width) / f32(app.surface_config.height)
+	aspect := f32(app.window.config.width) / f32(app.window.config.height)
 	for i in 0 ..< w.count {
 		e := Entity(i)
 		camera := pool_get(&w.camera, e)

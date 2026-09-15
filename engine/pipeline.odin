@@ -24,7 +24,7 @@ UiVertex :: struct {
 pipeline_handle :: proc(app: ^App, pipeline: Pipeline) -> wgpu.RenderPipeline {
 	switch pipeline {
 	case .Unlit:
-		return app.unlit_pipeline
+		return app.render.unlit_pipeline
 	}
 	panic("unknown pipeline")
 }
@@ -38,24 +38,24 @@ create_frame_bind_group :: proc(app: ^App) {
 		{binding = 1, visibility = {.Vertex}, buffer = {type = .ReadOnlyStorage, minBindingSize = size_of(Mat4)}},
 		{binding = 2, visibility = {.Vertex}, buffer = {type = .Uniform, minBindingSize = size_of(Mat4)}},
 	}
-	app.frame_layout = wgpu.DeviceCreateBindGroupLayout(
-		app.device,
+	app.render.frame_layout = wgpu.DeviceCreateBindGroupLayout(
+		app.window.device,
 		&{label = "frame", entryCount = len(entries), entries = &entries[0]},
 	)
-	if app.frame_layout == nil {
+	if app.render.frame_layout == nil {
 		panic("failed to create frame bind group layout")
 	}
 
 	bindings := [?]wgpu.BindGroupEntry {
-		{binding = 0, buffer = app.camera_uniform.handle, size = app.camera_uniform.size},
-		{binding = 1, buffer = app.models.handle, size = app.models.size},
-		{binding = 2, buffer = app.ui_uniform.handle, size = app.ui_uniform.size},
+		{binding = 0, buffer = app.render.camera_uniform.handle, size = app.render.camera_uniform.size},
+		{binding = 1, buffer = app.render.models.handle, size = app.render.models.size},
+		{binding = 2, buffer = app.render.ui_uniform.handle, size = app.render.ui_uniform.size},
 	}
-	app.frame_bind_group = wgpu.DeviceCreateBindGroup(
-		app.device,
-		&{label = "frame", layout = app.frame_layout, entryCount = len(bindings), entries = &bindings[0]},
+	app.render.frame_bind_group = wgpu.DeviceCreateBindGroup(
+		app.window.device,
+		&{label = "frame", layout = app.render.frame_layout, entryCount = len(bindings), entries = &bindings[0]},
 	)
-	if app.frame_bind_group == nil {
+	if app.render.frame_bind_group == nil {
 		panic("failed to create frame bind group")
 	}
 }
@@ -65,7 +65,7 @@ create_frame_bind_group :: proc(app: ^App) {
 // is supplied at draw time, not here, because the topology is not a strip.
 create_unlit_pipeline :: proc(app: ^App) {
 	module := wgpu.DeviceCreateShaderModule(
-		app.device,
+		app.window.device,
 		&{nextInChain = &wgpu.ShaderSourceWGSL{chain = {sType = .ShaderSourceWGSL}, code = UNLIT_SHADER}},
 	)
 	if module == nil {
@@ -73,9 +73,9 @@ create_unlit_pipeline :: proc(app: ^App) {
 	}
 	defer wgpu.ShaderModuleRelease(module)
 
-	layouts := [?]wgpu.BindGroupLayout{app.frame_layout}
+	layouts := [?]wgpu.BindGroupLayout{app.render.frame_layout}
 	pipeline_layout := wgpu.DeviceCreatePipelineLayout(
-		app.device,
+		app.window.device,
 		&{label = "unlit", bindGroupLayoutCount = len(layouts), bindGroupLayouts = &layouts[0]},
 	)
 	defer wgpu.PipelineLayoutRelease(pipeline_layout)
@@ -97,7 +97,7 @@ create_unlit_pipeline :: proc(app: ^App) {
 		depthCompare      = .Less,
 	}
 	target := wgpu.ColorTargetState {
-		format    = app.surface_config.format,
+		format    = app.window.config.format,
 		writeMask = wgpu.ColorWriteMaskFlags_All,
 	}
 	fragment := wgpu.FragmentState {
@@ -107,8 +107,8 @@ create_unlit_pipeline :: proc(app: ^App) {
 		targets     = &target,
 	}
 
-	app.unlit_pipeline = wgpu.DeviceCreateRenderPipeline(
-		app.device,
+	app.render.unlit_pipeline = wgpu.DeviceCreateRenderPipeline(
+		app.window.device,
 		&{
 			label = "unlit",
 			layout = pipeline_layout,
@@ -124,7 +124,7 @@ create_unlit_pipeline :: proc(app: ^App) {
 			fragment = &fragment,
 		},
 	)
-	if app.unlit_pipeline == nil {
+	if app.render.unlit_pipeline == nil {
 		panic("failed to create unlit pipeline")
 	}
 }
@@ -135,7 +135,7 @@ create_unlit_pipeline :: proc(app: ^App) {
 // batches were built.
 create_ui_pipeline :: proc(app: ^App) {
 	module := wgpu.DeviceCreateShaderModule(
-		app.device,
+		app.window.device,
 		&{nextInChain = &wgpu.ShaderSourceWGSL{chain = {sType = .ShaderSourceWGSL}, code = UI_SHADER}},
 	)
 	if module == nil {
@@ -143,9 +143,9 @@ create_ui_pipeline :: proc(app: ^App) {
 	}
 	defer wgpu.ShaderModuleRelease(module)
 
-	layouts := [?]wgpu.BindGroupLayout{app.frame_layout, app.texture_layout}
+	layouts := [?]wgpu.BindGroupLayout{app.render.frame_layout, app.render.texture_layout}
 	pipeline_layout := wgpu.DeviceCreatePipelineLayout(
-		app.device,
+		app.window.device,
 		&{label = "ui", bindGroupLayoutCount = len(layouts), bindGroupLayouts = &layouts[0]},
 	)
 	defer wgpu.PipelineLayoutRelease(pipeline_layout)
@@ -171,7 +171,7 @@ create_ui_pipeline :: proc(app: ^App) {
 		alpha = {operation = .Add, srcFactor = .One, dstFactor = .OneMinusSrcAlpha},
 	}
 	target := wgpu.ColorTargetState {
-		format    = app.surface_config.format,
+		format    = app.window.config.format,
 		blend     = &blend,
 		writeMask = wgpu.ColorWriteMaskFlags_All,
 	}
@@ -182,8 +182,8 @@ create_ui_pipeline :: proc(app: ^App) {
 		targets     = &target,
 	}
 
-	app.ui_pipeline = wgpu.DeviceCreateRenderPipeline(
-		app.device,
+	app.render.ui_pipeline = wgpu.DeviceCreateRenderPipeline(
+		app.window.device,
 		&{
 			label = "ui",
 			layout = pipeline_layout,
@@ -194,7 +194,7 @@ create_ui_pipeline :: proc(app: ^App) {
 			fragment = &fragment,
 		},
 	)
-	if app.ui_pipeline == nil {
+	if app.render.ui_pipeline == nil {
 		panic("failed to create ui pipeline")
 	}
 }

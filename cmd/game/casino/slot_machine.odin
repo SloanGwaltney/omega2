@@ -165,8 +165,8 @@ slot_machine_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 	}
 	slot := engine.pool_get(&g.slot_machine, machine)
 	panel := engine.Rect {
-		f32(app.surface_config.width) / 2 - SLOT_PANEL_WIDTH / 2,
-		f32(app.surface_config.height) / 2 - SLOT_PANEL_HEIGHT / 2,
+		f32(app.window.config.width) / 2 - SLOT_PANEL_WIDTH / 2,
+		f32(app.window.config.height) / 2 - SLOT_PANEL_HEIGHT / 2,
 		SLOT_PANEL_WIDTH,
 		SLOT_PANEL_HEIGHT,
 	}

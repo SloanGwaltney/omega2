@@ -3,7 +3,7 @@ package engine
 import "vendor:wgpu"
 
 // A sampled texture with the bind group that binds it, and the sampler it is
-// read through. Every sampled texture shares app.texture_layout, so any of them
+// read through. Every sampled texture shares app.render.texture_layout, so any of them
 // can be bound at group 1 of any pipeline that samples.
 Texture :: struct {
 	handle:     wgpu.Texture,
@@ -23,11 +23,11 @@ create_texture_layout :: proc(app: ^App) {
 		},
 		{binding = 1, visibility = {.Fragment}, sampler = {type = .Filtering}},
 	}
-	app.texture_layout = wgpu.DeviceCreateBindGroupLayout(
-		app.device,
+	app.render.texture_layout = wgpu.DeviceCreateBindGroupLayout(
+		app.window.device,
 		&{label = "texture", entryCount = len(entries), entries = &entries[0]},
 	)
-	if app.texture_layout == nil {
+	if app.render.texture_layout == nil {
 		panic("failed to create texture bind group layout")
 	}
 }
@@ -46,7 +46,7 @@ create_texture :: proc(
 
 	size := wgpu.Extent3D{width, height, 1}
 	handle := wgpu.DeviceCreateTexture(
-		app.device,
+		app.window.device,
 		&{
 			label = label,
 			usage = {.TextureBinding, .CopyDst},
@@ -62,7 +62,7 @@ create_texture :: proc(
 	}
 
 	wgpu.QueueWriteTexture(
-		app.queue,
+		app.window.queue,
 		&{texture = handle, aspect = .All},
 		raw_data(pixels),
 		len(pixels),
@@ -76,7 +76,7 @@ create_texture :: proc(
 	}
 
 	sampler := wgpu.DeviceCreateSampler(
-		app.device,
+		app.window.device,
 		&{
 			label = label,
 			addressModeU = .ClampToEdge,
@@ -98,10 +98,10 @@ create_texture :: proc(
 		{binding = 1, sampler = sampler},
 	}
 	bind_group := wgpu.DeviceCreateBindGroup(
-		app.device,
+		app.window.device,
 		&{
 			label = label,
-			layout = app.texture_layout,
+			layout = app.render.texture_layout,
 			entryCount = len(bindings),
 			entries = &bindings[0],
 		},

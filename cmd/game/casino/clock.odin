@@ -58,7 +58,7 @@ clock_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 	hour := int(g.clock.hour)
 	minute := int((g.clock.hour - f32(hour)) * 60)
 	time := fmt.tprintf("%2d:%02d", hour, minute)
-	line := engine.font_line_height(&app.font, .Large)
+	line := engine.font_line_height(&app.render.font, .Large)
 	engine.ui_text(app, ui, {CLOCK_MARGIN, CLOCK_MARGIN}, .Large, time, CLOCK_COLOR)
 	day := fmt.tprintf("Day %d", g.clock.day)
 	engine.ui_text(app, ui, {CLOCK_MARGIN, CLOCK_MARGIN + line}, .Large, day, CLOCK_COLOR)

@@ -39,7 +39,7 @@ ui_system :: proc(app: ^App) {
 	ui.vertex_count = 0
 	ui.index_count = 0
 	ui.texture = nil
-	ui.white_uv = app.font.white_uv
+	ui.white_uv = app.render.font.white_uv
 	if !app.input.mouse_down {
 		ui.active = nil
 	}
@@ -50,8 +50,8 @@ ui_system :: proc(app: ^App) {
 	if ui.index_count == 0 {
 		return
 	}
-	gpu_buffer_write(app, &app.ui_vertices, ui.vertices[:ui.vertex_count])
-	gpu_buffer_write(app, &app.ui_indices, ui.indices[:ui.index_count])
+	gpu_buffer_write(app, &app.render.ui_vertices, ui.vertices[:ui.vertex_count])
+	gpu_buffer_write(app, &app.render.ui_indices, ui.indices[:ui.index_count])
 }
 
 // Pushes a solid rectangle. Panics once the frame's ui geometry is full.
@@ -70,9 +70,9 @@ ui_button :: proc(app: ^App, ui: ^Ui, r: Rect, size: FontSize, text: string) -> 
 	hovered := rect_contains(r, app.input.mouse_pos)
 	ui_rect(ui, r, UI_BUTTON_HOVER_COLOR if hovered else UI_BUTTON_COLOR)
 
-	face := &app.font.faces[size]
+	face := &app.render.font.faces[size]
 	pos := Vec2 {
-		r.x + (r.w - font_measure(&app.font, size, text)) / 2,
+		r.x + (r.w - font_measure(&app.render.font, size, text)) / 2,
 		r.y + (r.h - face.line_height) / 2,
 	}
 	ui_text(app, ui, pos, size, text, UI_BUTTON_TEXT_COLOR)
@@ -119,7 +119,7 @@ rect_contains :: proc(r: Rect, p: Vec2) -> bool {
 // Pushes text with its top left corner at pos, and returns the pen's end. Only
 // draws when the font atlas is bound, which is the default.
 ui_text :: proc(app: ^App, ui: ^Ui, pos: Vec2, size: FontSize, text: string, color: Vec4) -> Vec2 {
-	face := &app.font.faces[size]
+	face := &app.render.font.faces[size]
 	pen := Vec2{pos.x, pos.y + face.ascent}
 	for ch in text {
 		index := glyph_index(ch) or_continue
@@ -163,12 +163,12 @@ draw_ui_system :: proc(app: ^App) {
 	if app.ui.index_count == 0 {
 		return
 	}
-	pass := app.frame.pass
-	wgpu.RenderPassEncoderSetPipeline(pass, app.ui_pipeline)
-	wgpu.RenderPassEncoderSetVertexBuffer(pass, 0, app.ui_vertices.handle, 0, wgpu.WHOLE_SIZE)
-	wgpu.RenderPassEncoderSetIndexBuffer(pass, app.ui_indices.handle, INDEX_FORMAT, 0, wgpu.WHOLE_SIZE)
-	wgpu.RenderPassEncoderSetBindGroup(pass, 0, app.frame_bind_group)
-	texture := app.ui.texture if app.ui.texture != nil else &app.font.atlas
+	pass := app.render.frame.pass
+	wgpu.RenderPassEncoderSetPipeline(pass, app.render.ui_pipeline)
+	wgpu.RenderPassEncoderSetVertexBuffer(pass, 0, app.render.ui_vertices.handle, 0, wgpu.WHOLE_SIZE)
+	wgpu.RenderPassEncoderSetIndexBuffer(pass, app.render.ui_indices.handle, INDEX_FORMAT, 0, wgpu.WHOLE_SIZE)
+	wgpu.RenderPassEncoderSetBindGroup(pass, 0, app.render.frame_bind_group)
+	texture := app.ui.texture if app.ui.texture != nil else &app.render.font.atlas
 	wgpu.RenderPassEncoderSetBindGroup(pass, 1, texture.bind_group)
 	wgpu.RenderPassEncoderDrawIndexed(pass, app.ui.index_count, 1, 0, 0, 0)
 }
