@@ -232,3 +232,128 @@ test_raycast_distance_is_world_units_under_scale :: proc(t: ^testing.T) {
 	testing.expect(t, ok)
 	expect_near(t, dist, 7)
 }
+
+// A box a unit tall and 4 long on x, so a yaw turn changes its footprint
+// enough for the axis aligned hull and the real one to disagree.
+@(private = "file")
+BAR_BOX :: Aabb{{-2, 0, -0.1}, {2, 1, 0.1}}
+
+@(private = "file")
+yawed :: proc(pos: Vec3, yaw: f32) -> Transform {
+	t := at(pos)
+	t.rot = linalg.quaternion_angle_axis_f32(yaw, Vec3{0, 1, 0})
+	return t
+}
+
+@(test)
+test_obb2_from_centres_the_box_and_keeps_its_y_range :: proc(t: ^testing.T) {
+	got := obb2_from(Aabb{{-1, 0, -0.5}, {1, 2, 0.5}}, at({3, 0, 4}))
+	expect_near(t, got.center.x, 3)
+	expect_near(t, got.center.y, 4)
+	expect_near(t, got.half.x, 1)
+	expect_near(t, got.half.y, 0.5)
+	expect_near(t, got.min_y, 0)
+	expect_near(t, got.max_y, 2)
+}
+
+@(test)
+test_obb2_from_applies_scale :: proc(t: ^testing.T) {
+	tr := at({0, 0, 0})
+	tr.scale = {2, 3, 4}
+	got := obb2_from(UNIT_BOX, tr)
+	expect_near(t, got.half.x, 2)
+	expect_near(t, got.half.y, 4)
+	expect_near(t, got.max_y, 3)
+}
+
+@(test)
+test_obb2_overlaps_boxes_sharing_space :: proc(t: ^testing.T) {
+	a := obb2_from(UNIT_BOX, at({0, 0, 0}))
+	b := obb2_from(UNIT_BOX, at({1.5, 0, 0}))
+	testing.expect(t, obb2_overlaps(a, b))
+}
+
+@(test)
+test_obb2_overlaps_separated_boxes :: proc(t: ^testing.T) {
+	a := obb2_from(UNIT_BOX, at({0, 0, 0}))
+	b := obb2_from(UNIT_BOX, at({2.5, 0, 0}))
+	testing.expect(t, !obb2_overlaps(a, b))
+}
+
+// Boxes placed edge to edge only touch, which placement must allow.
+@(test)
+test_obb2_overlaps_touching_boxes_are_clear :: proc(t: ^testing.T) {
+	a := obb2_from(UNIT_BOX, at({0, 0, 0}))
+	b := obb2_from(UNIT_BOX, at({2, 0, 0}))
+	testing.expect(t, !obb2_overlaps(a, b))
+}
+
+// Footprints that overlap are still clear when one box sits above the other.
+@(test)
+test_obb2_overlaps_boxes_stacked_out_of_reach :: proc(t: ^testing.T) {
+	a := obb2_from(UNIT_BOX, at({0, 0, 0}))
+	b := obb2_from(UNIT_BOX, at({0, 3, 0}))
+	testing.expect(t, !obb2_overlaps(a, b))
+}
+
+// Turned a quarter turn the bar is only 0.2 wide on x, so the pair is clear
+// even though their axis aligned hulls still overlap.
+@(test)
+test_obb2_overlaps_honours_yaw :: proc(t: ^testing.T) {
+	a := obb2_from(BAR_BOX, at({0, 0, 0}))
+	b := obb2_from(BAR_BOX, yawed({2.5, 0, 0}, math.PI / 2))
+	testing.expect(t, !obb2_overlaps(a, b))
+}
+
+@(test)
+test_obb2_overlaps_yawed_boxes_still_meet :: proc(t: ^testing.T) {
+	a := obb2_from(BAR_BOX, at({0, 0, 0}))
+	b := obb2_from(BAR_BOX, yawed({2, 0, 0}, math.PI / 2))
+	testing.expect(t, obb2_overlaps(a, b))
+}
+
+@(test)
+test_aabb_overlaps_any_finds_the_box_in_the_way :: proc(t: ^testing.T) {
+	w := world_create()
+	defer world_destroy(w)
+	e := box_entity(w, UNIT_BOX, at({0, 0, 0}))
+	box_entity(w, UNIT_BOX, at({1.5, 0, 0}))
+	testing.expect(t, aabb_overlaps_any(w, e))
+}
+
+// The entity is skipped against itself, so a lone box is always clear.
+@(test)
+test_aabb_overlaps_any_ignores_itself :: proc(t: ^testing.T) {
+	w := world_create()
+	defer world_destroy(w)
+	e := box_entity(w, UNIT_BOX, at({0, 0, 0}))
+	testing.expect(t, !aabb_overlaps_any(w, e))
+}
+
+@(test)
+test_aabb_overlaps_any_clear_of_everything :: proc(t: ^testing.T) {
+	w := world_create()
+	defer world_destroy(w)
+	e := box_entity(w, UNIT_BOX, at({0, 0, 0}))
+	box_entity(w, UNIT_BOX, at({5, 0, 0}))
+	testing.expect(t, !aabb_overlaps_any(w, e))
+}
+
+// An entity without a box has no footprint to overlap with.
+@(test)
+test_aabb_overlaps_any_without_a_box :: proc(t: ^testing.T) {
+	w := world_create()
+	defer world_destroy(w)
+	e := entity_create(w)
+	pool_add(&w.transform, e, at({0, 0, 0}))
+	box_entity(w, UNIT_BOX, at({0, 0, 0}))
+	testing.expect(t, !aabb_overlaps_any(w, e))
+}
+
+@(test)
+test_collide_sphere_ignores_the_named_entity :: proc(t: ^testing.T) {
+	w := world_create()
+	defer world_destroy(w)
+	e := box_entity(w, UNIT_BOX, at({0, 0, 0}))
+	expect_near_vec3(t, collide_sphere(w, {1.5, 0, 0}, 0.9, e), {1.5, 0, 0})
+}

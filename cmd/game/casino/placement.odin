@@ -90,7 +90,6 @@ placement_system :: proc(app: ^engine.App) {
 // Where on the floor the player is aiming, and whether that point is on the
 // floor at all. An aim that misses the floor still returns a point out at
 // PLACE_REACH, so the item stays in sight while it cannot be placed.
-@(private = "file")
 placement_target :: proc(player: engine.Transform) -> (engine.Vec3, bool) {
 	forward := linalg.quaternion_mul_vector3(player.rot, engine.Vec3{0, 0, -1})
 	if forward.y < -PLACE_MIN_PITCH {
