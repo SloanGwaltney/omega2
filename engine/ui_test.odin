@@ -84,6 +84,34 @@ test_rect_contains_edges_are_half_open :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_ui_grid_cell_wraps_by_column_count :: proc(t: ^testing.T) {
+	r := Rect{0, 0, 100, 100}
+	w := (r.w - 10 * 2) / 3
+
+	testing.expect_value(t, ui_grid_cell(r, 3, 20, 10, 0), Rect{0, 0, w, 20})
+	testing.expect_value(t, ui_grid_cell(r, 3, 20, 10, 2), Rect{2 * (w + 10), 0, w, 20})
+	testing.expect_value(t, ui_grid_cell(r, 3, 20, 10, 3), Rect{0, 30, w, 20})
+	testing.expect_value(t, ui_grid_cell(r, 3, 20, 10, 4), Rect{w + 10, 30, w, 20})
+}
+
+@(test)
+test_ui_grid_cell_row_fills_rect_width :: proc(t: ^testing.T) {
+	r := Rect{10, 5, 90, 50}
+	last := ui_grid_cell(r, 4, 20, 6, 3)
+
+	testing.expect_value(t, ui_grid_cell(r, 4, 20, 6, 0).x, r.x)
+	testing.expect_value(t, last.x + last.w, r.x + r.w)
+}
+
+@(test)
+test_ui_grid_cell_single_column_stacks :: proc(t: ^testing.T) {
+	r := Rect{0, 0, 40, 100}
+
+	testing.expect_value(t, ui_grid_cell(r, 1, 20, 4, 0), Rect{0, 0, 40, 20})
+	testing.expect_value(t, ui_grid_cell(r, 1, 20, 4, 2), Rect{0, 48, 40, 20})
+}
+
+@(test)
 test_ui_textured_rect_uv_corners :: proc(t: ^testing.T) {
 	ui := new(Ui)
 	defer free(ui)

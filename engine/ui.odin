@@ -116,6 +116,16 @@ rect_contains :: proc(r: Rect, p: Vec2) -> bool {
 	return p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h
 }
 
+// Rect of cell index in a grid of cols columns filling r from the top left,
+// cells cell_h tall and separated by gap on both axes.
+ui_grid_cell :: proc(r: Rect, cols: int, cell_h, gap: f32, index: int) -> Rect {
+	assert(cols > 0, "grid needs at least one column")
+	w := (r.w - gap * f32(cols - 1)) / f32(cols)
+	col := f32(index % cols)
+	row := f32(index / cols)
+	return {r.x + col * (w + gap), r.y + row * (cell_h + gap), w, cell_h}
+}
+
 // Pushes text with its top left corner at pos, and returns the pen's end. Only
 // draws when the font atlas is bound, which is the default.
 ui_text :: proc(app: ^App, ui: ^Ui, pos: Vec2, size: FontSize, text: string, color: Vec4) -> Vec2 {
