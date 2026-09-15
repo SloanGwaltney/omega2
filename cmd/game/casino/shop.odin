@@ -7,20 +7,42 @@ import "../../../engine"
 import "core:strings"
 import "vendor:sdl3"
 
-// One thing on offer. Stats are free text until the items are real.
+// One thing on offer. Stats are free text until the items are real, and an
+// item without a spawn cannot be bought yet.
 ShopItem :: struct {
 	name:        string,
 	description: string,
 	stats:       string,
+	// What buying one takes out of the bank.
+	cost:        f32,
+	// Spawns the item's body for the player to place, or nil while the item
+	// has no model.
+	spawn:       proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity,
+	// Makes a spawned body do its job, run once its placement is confirmed.
+	activate:    proc(app: ^engine.App, e: engine.Entity),
 }
 
 SHOP_ITEMS := [?]ShopItem {
-	{"Slots", "Three reels, house edge.", "Cost $2500\nRTP 80-99%\nFootprint 1x1"},
-	{"Blackjack", "Seats five players.", "Cost $6000\nEdge 0.5%\nFootprint 2x2"},
-	{"Roulette", "Single zero wheel.", "Cost $9000\nEdge 2.7%\nFootprint 2x2"},
-	{"Bar", "Holds patrons longer.", "Cost $4000\nUpkeep $50/day\nFootprint 3x1"},
-	{"Neon Sign", "Draws more patrons in.", "Cost $1200\nDraw +10%\nFootprint 1x1"},
-	{"Camera", "Catches cheating patrons.", "Cost $800\nCover 8m\nFootprint 1x1"},
+	{
+		"Slots",
+		"Three reels, house edge.",
+		"Cost $2500\nRTP 80-99%\nFootprint 1x1",
+		2500,
+		slot_machine_spawn,
+		slot_machine_activate,
+	},
+	{"Blackjack", "Seats five players.", "Cost $6000\nEdge 0.5%\nFootprint 2x2", 6000, nil, nil},
+	{"Roulette", "Single zero wheel.", "Cost $9000\nEdge 2.7%\nFootprint 2x2", 9000, nil, nil},
+	{"Bar", "Holds patrons longer.", "Cost $4000\nUpkeep $50/day\nFootprint 3x1", 4000, nil, nil},
+	{
+		"Neon Sign",
+		"Draws more patrons in.",
+		"Cost $1200\nDraw +10%\nFootprint 1x1",
+		1200,
+		nil,
+		nil,
+	},
+	{"Camera", "Catches cheating patrons.", "Cost $800\nCover 8m\nFootprint 1x1", 800, nil, nil},
 }
 
 SHOP_COLS :: 3
@@ -46,7 +68,7 @@ shop_system :: proc(app: ^engine.App) {
 	g := (^Game)(app.world.user_ptr)
 	down := app.input.keys[sdl3.Scancode.B]
 	defer g.shop_down = down
-	if !down || g.shop_down || (game_ui_open(g) && !g.shop_open) {
+	if !down || g.shop_down || g.placement != nil || (game_ui_open(g) && !g.shop_open) {
 		return
 	}
 	shop_set_open(app, !g.shop_open)
@@ -106,7 +128,7 @@ shop_cell_ui :: proc(
 
 	button_w := (w - SHOP_TEXT_GAP) / 2
 	button_y := cell.y + cell.h - SHOP_TEXT_GAP - SHOP_BUTTON_HEIGHT
-	engine.ui_button_colored(
+	if engine.ui_button_colored(
 		app,
 		ui,
 		{x, button_y, button_w, SHOP_BUTTON_HEIGHT},
@@ -114,7 +136,9 @@ shop_cell_ui :: proc(
 		"Buy",
 		SHOP_BUY_COLOR,
 		SHOP_BUY_HOVER_COLOR,
-	)
+	) {
+		shop_buy(app, item)
+	}
 	if engine.ui_button_colored(
 		app,
 		ui,
@@ -126,6 +150,19 @@ shop_cell_ui :: proc(
 	) {
 		details^ = !details^
 	}
+}
+
+// Closes the shop and hands the item to the player to place, if the item can
+// be spawned at all and the bank covers it. The bank is not charged until the
+// placement is confirmed.
+@(private = "file")
+shop_buy :: proc(app: ^engine.App, item: ShopItem) {
+	g := (^Game)(app.world.user_ptr)
+	if item.spawn == nil || g.bank < item.cost {
+		return
+	}
+	shop_set_open(app, false)
+	placement_begin(app, item)
 }
 
 // Draws text one small line per newline, starting at r's top left.

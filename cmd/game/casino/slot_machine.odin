@@ -83,8 +83,17 @@ SlotMachine :: struct {
 	patron: Maybe(engine.Entity),
 }
 
-// Spawns a slot machine standing on the floor at pos.
+// Spawns a playable slot machine standing on the floor at pos.
 slot_machine_create :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity {
+	e := slot_machine_spawn(app, pos)
+	slot_machine_activate(app, e)
+	return e
+}
+
+// Spawns a slot machine's body standing on the floor at pos. It draws and
+// collides but cannot be played until slot_machine_activate runs, which is
+// what placement wants while the machine is still being positioned.
+slot_machine_spawn :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity {
 	e := engine.entity_create(app.world)
 	t := engine.transform_identity()
 	t.pos = pos
@@ -99,6 +108,11 @@ slot_machine_create :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity
 		},
 	)
 	engine.pool_add(&app.world.aabb, e, engine.Aabb{{-W, 0, -D}, {W, H, D}})
+	return e
+}
+
+// Makes a spawned machine playable.
+slot_machine_activate :: proc(app: ^engine.App, e: engine.Entity) {
 	g := (^Game)(app.world.user_ptr)
 	engine.pool_add(
 		&g.interactable,
@@ -106,7 +120,6 @@ slot_machine_create :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity
 		Interactable{on_hover = slot_machine_hover, on_interact = slot_machine_interact},
 	)
 	engine.pool_add(&g.slot_machine, e, SlotMachine{rtp = SLOT_MAX_RTP})
-	return e
 }
 
 // Raises the slot machine's prompt while the player is aimed at it.

@@ -16,6 +16,12 @@ Input :: struct {
 	// Left button state this frame, and whether it went down this frame.
 	mouse_down:  bool,
 	mouse_click: bool,
+	// Wheel notches scrolled this frame, positive away from the user.
+	wheel:       f32,
+	// Wheel notches gathered from events since the last sample. Events are
+	// polled before this frame's sample, so they land here and are moved into
+	// wheel rather than being zeroed out from under the frame.
+	wheel_accum: f32,
 }
 
 // Snapshots the keyboard and relative mouse state into app.input.
@@ -27,6 +33,9 @@ sample_input_system :: proc(app: ^App) {
 	was_down := app.input.mouse_down
 	app.input.mouse_down = .LEFT in buttons
 	app.input.mouse_click = app.input.mouse_down && !was_down
+
+	app.input.wheel = app.input.wheel_accum
+	app.input.wheel_accum = 0
 }
 
 // Captures the mouse for relative aiming, hiding the cursor and freezing

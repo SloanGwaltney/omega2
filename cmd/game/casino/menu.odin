@@ -18,6 +18,10 @@ menu_system :: proc(app: ^engine.App) {
 	if !down || g.escape_down {
 		return
 	}
+	if g.placement != nil {
+		placement_cancel(app)
+		return
+	}
 	if g.open_machine != nil {
 		slot_machine_set_open(app, nil)
 		return

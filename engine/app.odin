@@ -50,6 +50,8 @@ run_app :: proc(app: ^App) {
 			#partial switch event.type {
 			case .QUIT:
 				return
+			case .MOUSE_WHEEL:
+				app.input.wheel_accum += event.wheel.y
 			case .WINDOW_PIXEL_SIZE_CHANGED:
 				resize_surface(app, u32(event.window.data1), u32(event.window.data2))
 			}

@@ -33,6 +33,9 @@ Game :: struct {
 	shop_open:     bool,
 	// Cells of the buy menu showing their stats instead of their picture.
 	shop_details:  [len(SHOP_ITEMS)]bool,
+	// The item the player is positioning, if any. Placing keeps the mouse
+	// captured, so the player still walks and looks while it is set.
+	placement:     Maybe(Placement),
 	// The buy menu key's state last frame, so it toggles on the press edge.
 	shop_down:     bool,
 	// Escape's state last frame, so the menu toggles on the press edge.
@@ -59,6 +62,7 @@ GAME_SYSTEMS := [?]engine.System {
 	player_look_system,
 	player_move_system,
 	interactor_system,
+	placement_system,
 	patron_system,
 	patron_play_system,
 }
@@ -134,7 +138,7 @@ player_input_system :: proc(app: ^engine.App) {
 		}
 		look = app.input.mouse_delta
 		down := keys[sdl3.Scancode.E]
-		interact = down && !g.interact_down
+		interact = down && !g.interact_down && g.placement == nil
 		g.interact_down = down
 	} else {
 		g.interact_down = false
@@ -202,6 +206,8 @@ player_move_system :: proc(app: ^engine.App) {
 		transform.pos += linalg.normalize(dir) * movement.speed * dt
 
 		offset := engine.Vec3{0, EYE_HEIGHT / 2, 0}
-		transform.pos = engine.collide_sphere(w, transform.pos - offset, PLAYER_RADIUS) + offset
+		transform.pos =
+			engine.collide_sphere(w, transform.pos - offset, PLAYER_RADIUS, placement_entity(g)) +
+			offset
 	}
 }
