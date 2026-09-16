@@ -18,16 +18,9 @@ PROMPT_COLOR :: engine.Vec4{1, 1, 1, 1}
 BANK_MARGIN :: 16.0
 BANK_COLOR :: engine.Vec4{1, 0.9, 0.4, 1}
 
-// The player, spawned through the json loader.
-PLAYER_JSON :: `[
-	{"name": "engine:transform", "data": {"pos": [0, 1.7, 5]}},
-	{"name": "engine:camera", "data": {"fov_y": 1.0471976, "near": 0.1, "far": 200}},
-	{"name": "casino:input"},
-	{"name": "casino:player"},
-	{"name": "casino:movement", "data": {"speed": 25}},
-	{"name": "casino:mouse_look", "data": {"sensitivity": 0.002}},
-	{"name": "casino:interactor", "data": {"reach": 3}}
-]`
+// The player, spawned through the json loader. Embedded at compile time, so
+// a renamed scene fails the build rather than the launch.
+PLAYER_JSON :: #load("scenes/player.json", string)
 
 FLOOR_VERTICES := [?]engine.Vertex {
 	{pos = {-FLOOR_HALF, 0, FLOOR_HALF}, color = FLOOR_COLOR},

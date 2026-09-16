@@ -1,0 +1,9 @@
+[
+	{"name": "engine:transform", "data": {"pos": [0, 1.7, 5]}},
+	{"name": "engine:camera", "data": {"fov_y": 1.0471976, "near": 0.1, "far": 200}},
+	{"name": "casino:input"},
+	{"name": "casino:player"},
+	{"name": "casino:movement", "data": {"speed": 25}},
+	{"name": "casino:mouse_look", "data": {"sensitivity": 0.002}},
+	{"name": "casino:interactor", "data": {"reach": 3}}
+]
