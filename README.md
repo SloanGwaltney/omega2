@@ -69,6 +69,8 @@ Health :: struct {
 1. Define the struct next to the code that uses it, in `cmd/game/casino`.
 2. Add a `engine.Pool(T)` field to `Game` in `player.odin`.
 3. Clear it in `game_on_destroy`.
+4. To name it in json, add a `casino:` case to `casino_component_loader` in
+   `cmd/game/casino/json.odin`.
 
 **Engine component** — only for something the renderer or another engine
 system reads, like `Transform` or `Aabb`:
@@ -76,6 +78,8 @@ system reads, like `Transform` or `Aabb`:
 1. Define the struct in `engine/`.
 2. Add a `Pool(T)` field to `World` in `engine/ecs.odin`.
 3. Clear it in `entity_destroy`.
+4. To name it in json, add an `engine:` case to `component_from_json` in
+   `engine/json.odin`.
 
 Missing either clear leaves a destroyed entity holding stale components.
 
@@ -88,6 +92,55 @@ Attach with `pool_add(&g.health, e, Health{100, 100})`, read with `pool_get`,
 which returns `nil` when the entity has none. Pools are zeroed, so a component
 whose zero value is not a valid state needs a seeding helper — see
 `transform_identity`.
+
+## Entities from json
+
+`engine.entity_from_json` builds an entity from an array of components:
+
+```json
+[
+	{"name": "engine:transform", "data": {"pos": [0, 1.7, 5]}},
+	{"name": "casino:movement", "data": {"speed": 25}}
+]
+```
+
+Names are prefixed by who owns the component, which is what stops the engine
+and a game from claiming the same one. The engine handles `engine:` itself and
+hands everything else to the `ComponentLoader` passed alongside the document:
+
+```odin
+engine.entity_from_json(app.world, PLAYER_JSON, casino_component_loader)
+```
+
+A loader returns false for a name it does not own either. Any failure destroys
+the entity, so nothing half built survives, though the id is still spent
+because ids are never reused.
+
+Two rules when adding a case:
+
+- **Seed defaults before unmarshalling.** `component_unmarshal` leaves fields
+  the json omits at whatever the struct already holds, which is how
+  `engine:transform` comes back at unit scale. A component seeded from its zero
+  value gets the zero value for anything left out.
+- **Only plain data can be named.** `Drawable` holds gpu offsets and
+  `Interactable` holds procs, so neither can come from a document. A mesh has
+  to arrive as a game component that resolves an asset by name.
+
+Rotation is the one field that is not a straight mapping: json carries euler
+degrees, turned about y then x then z, because a quaternion is neither
+writable by hand nor something `core:encoding/json` can unmarshal.
+
+Games own file io, not the engine — `entity_from_json` takes a string and never
+goes looking for one. The casino embeds its scenes at compile time:
+
+```odin
+PLAYER_JSON :: #load("scenes/player.json", string)
+```
+
+That keeps a renamed scene a build error instead of a launch one, and sidesteps
+the working directory entirely. `#load_directory` is the next step up, and
+runtime reads only become worth it once content should change without a
+rebuild.
 
 ## Adding a system
 
