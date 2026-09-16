@@ -8,9 +8,6 @@ import "core:math"
 import "core:slice"
 
 EYE_HEIGHT :: 1.7
-MOVE_SPEED :: 25.0
-MOUSE_SENSITIVITY :: 0.002
-INTERACT_REACH :: 3.0
 FLOOR_HALF :: 50.0
 FLOOR_COLOR :: engine.Vec4{0.15, 0.35, 0.2, 1}
 CROSSHAIR_LENGTH :: 18.0
@@ -20,6 +17,17 @@ PROMPT_OFFSET :: 48.0
 PROMPT_COLOR :: engine.Vec4{1, 1, 1, 1}
 BANK_MARGIN :: 16.0
 BANK_COLOR :: engine.Vec4{1, 0.9, 0.4, 1}
+
+// The player, spawned through the json loader.
+PLAYER_JSON :: `[
+	{"name": "engine:transform", "data": {"pos": [0, 1.7, 5]}},
+	{"name": "engine:camera", "data": {"fov_y": 1.0471976, "near": 0.1, "far": 200}},
+	{"name": "casino:input"},
+	{"name": "casino:player"},
+	{"name": "casino:movement", "data": {"speed": 25}},
+	{"name": "casino:mouse_look", "data": {"sensitivity": 0.002}},
+	{"name": "casino:interactor", "data": {"reach": 3}}
+]`
 
 FLOOR_VERTICES := [?]engine.Vertex {
 	{pos = {-FLOOR_HALF, 0, FLOOR_HALF}, color = FLOOR_COLOR},
@@ -93,20 +101,9 @@ main :: proc() {
 	app.world.on_destroy = game_on_destroy
 	app.user_systems = GAME_SYSTEMS[:]
 
-	player := engine.entity_create(app.world)
-	t := engine.transform_identity()
-	t.pos = {0, EYE_HEIGHT, 5}
-	engine.pool_add(&app.world.transform, player, t)
-	engine.pool_add(
-		&app.world.camera,
-		player,
-		engine.Camera{fov_y = math.PI / 3, near = 0.1, far = 200},
-	)
-	engine.pool_add(&game.input, player, InputValues{})
-	engine.pool_add(&game.player, player, Player{})
-	engine.pool_add(&game.movement, player, Movement{speed = MOVE_SPEED})
-	engine.pool_add(&game.mouse_look, player, MouseLook{sensitivity = MOUSE_SENSITIVITY})
-	engine.pool_add(&game.interactor, player, Interactor{reach = INTERACT_REACH})
+	if _, ok := engine.entity_from_json(app.world, PLAYER_JSON, casino_component_loader); !ok {
+		panic("bad player json")
+	}
 
 	floor := engine.entity_create(app.world)
 	engine.pool_add(&app.world.transform, floor, engine.transform_identity())
