@@ -142,6 +142,54 @@ the working directory entirely. `#load_directory` is the next step up, and
 runtime reads only become worth it once content should change without a
 rebuild.
 
+## Models from gltf
+
+`engine.mesh_from_glb` turns binary gltf bytes into a `MeshData` — packed
+`Vertex`, the `Index` slice and the `Aabb` the geometry fills:
+
+```odin
+DEMO_SLOT_GLB :: #load("models/demo_slot.glb")
+
+mesh, ok := engine.mesh_from_glb(DEMO_SLOT_GLB)
+```
+
+`MeshData` is what a hand written mesh and an imported one both look like, so
+either can feed `DrawableUpload`, `icon_bake` and the `Aabb` pool. Games own
+file io here too: the loader takes bytes and the casino embeds the model with
+`#load`, the same rule `entity_from_json` follows.
+
+Export from Blender as **glTF Binary (.glb)** with its defaults. `+Y Up` and
+CCW winding already match the camera and the unlit pipeline's `frontFace`.
+
+Two things about the geometry that arrives:
+
+- **Every mesh in the scene is flattened into one.** Node transforms are baked
+  into the positions and all primitives are concatenated, so the hierarchy is
+  gone by the time the mesh is returned.
+- **Blender models about the origin, our convention is origin at base.** Lift a
+  spawned model by `-bounds.min.y` or it sits half under the floor — see
+  `demo_model_create`.
+
+### What it does not support yet
+
+Only what the unlit pipeline can draw is read, which is positions, uvs and each
+primitive's `baseColorFactor` folded into the vertex color. So:
+
+- **No materials, no textures, no lighting.** A material's base color becomes a
+  flat vertex color, which means a model only shows shape where its materials
+  differ. Give a test object two or three material slots, or it imports as a
+  silhouette. Normals are ignored entirely; a `.Lit` layout and pipeline is the
+  next step.
+- **Colors arrive linear.** Blender writes `baseColorFactor` in linear space
+  and nothing converts it, so it looks right only while the surface format is
+  sRGB. `create_window` takes `caps.formats[0]` and does not check.
+- **No skins or animations.** Nor sparse accessors, non-triangle topologies, or
+  positions and uvs in any component type but f32. Each of those is refused
+  rather than approximated, so a malformed or unsupported document returns
+  false instead of drawing something wrong.
+- **`.glb` only.** The text `.gltf` form would need external file resolution
+  and base64 data uris, and every exporter can write `.glb`.
+
 ## Adding a system
 
 A system is an `engine.System`, that is a `proc(app: ^App)`. Every system gets
