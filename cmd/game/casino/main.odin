@@ -22,6 +22,10 @@ BANK_COLOR :: engine.Vec4{1, 0.9, 0.4, 1}
 // a renamed scene fails the build rather than the launch.
 PLAYER_JSON :: #load("scenes/player.json", string)
 
+// A glb out of blender, embedded for the same reason and because the engine
+// does no io of its own. Spawned by demo_model_create to eyeball the importer.
+DEMO_SLOT_GLB :: #load("models/demo_slot.glb")
+
 FLOOR_VERTICES := [?]engine.Vertex {
 	{pos = {-FLOOR_HALF, 0, FLOOR_HALF}, color = FLOOR_COLOR},
 	{pos = {FLOOR_HALF, 0, FLOOR_HALF}, color = FLOOR_COLOR},
@@ -29,6 +33,28 @@ FLOOR_VERTICES := [?]engine.Vertex {
 	{pos = {-FLOOR_HALF, 0, -FLOOR_HALF}, color = FLOOR_COLOR},
 }
 FLOOR_INDICES := [?]engine.Index{0, 1, 2, 0, 2, 3}
+
+// Spawns the imported glb standing on the floor at pos, drawn and collided
+// with the bounds the importer measured. Blender models its meshes about
+// their centre, so pos is lifted clear of the floor by the bounds rather than
+// by a number that only suits one export.
+demo_model_create :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity {
+	mesh, ok := engine.mesh_from_glb(DEMO_SLOT_GLB)
+	if !ok {
+		panic("bad demo slot glb")
+	}
+	e := engine.entity_create(app.world)
+	t := engine.transform_identity()
+	t.pos = pos - {0, mesh.bounds.min.y, 0}
+	engine.pool_add(&app.world.transform, e, t)
+	engine.pool_add(
+		&app.world.drawable_upload,
+		e,
+		engine.DrawableUpload{pipeline = .Unlit, data = mesh.data, indices = mesh.indices},
+	)
+	engine.pool_add(&app.world.aabb, e, mesh.bounds)
+	return e
+}
 
 // Draws a centred crosshair, or the slot machine screen in place of the
 // world ui while a machine is open.
@@ -109,6 +135,8 @@ main :: proc() {
 			indices = FLOOR_INDICES[:],
 		},
 	)
+
+	demo_model_create(app, {0, 0, -3})
 
 	slot_machine_create(app, {-1.5, 0, 0})
 	slot_machine_create(app, {1.5, 0, 0})
