@@ -87,3 +87,13 @@ vertex_buffer :: proc(app: ^App, layout: VertexLayout) -> ^GpuBuffer {
 	}
 	panic("unknown vertex layout")
 }
+
+// A mesh's cpu side data before it is uploaded: vertices packed for a layout,
+// the indices into them, and the box they fill. What a hand written mesh and
+// an imported one both look like, so either can feed DrawableUpload,
+// icon_bake and the Aabb pool.
+MeshData :: struct {
+	data:    []byte,
+	indices: []Index,
+	bounds:  Aabb,
+}
