@@ -9,12 +9,15 @@ import "core:encoding/json"
 import "core:fmt"
 
 SLOT_MACHINE_JSON :: #load("scenes/slot_machine.json", string)
+UV_SPHERE_JSON :: #load("scenes/uv_sphere.json", string)
+
+UV_SPHERE_SCENE :: "scenes/uv_sphere.json"
 
 // Every scene a shop item may name, paired with the path it is embedded from.
 SCENES := [?]struct {
 	path: string,
 	src:  string,
-}{{SLOT_MACHINE_SCENE, SLOT_MACHINE_JSON}}
+}{{SLOT_MACHINE_SCENE, SLOT_MACHINE_JSON}, {UV_SPHERE_SCENE, UV_SPHERE_JSON}}
 
 // The document at path, false for a path this build does not embed.
 scene_src :: proc(path: string) -> (string, bool) {

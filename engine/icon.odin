@@ -52,8 +52,13 @@ icon_bake :: proc(
 	defer wgpu.TextureViewRelease(depth_view)
 
 	aspect := f32(width) / f32(height)
-	gpu_buffer_write(app, &app.render.camera_uniform, []Mat4{icon_view_proj(bounds, aspect)})
+	view_proj, eye := icon_view_proj(bounds, aspect)
+	gpu_buffer_write(app, &app.render.camera_uniform, []Mat4{view_proj})
 	gpu_buffer_write(app, &app.render.models, []Mat4{linalg.MATRIX4F32_IDENTITY})
+	// The icon is viewed from its own camera, so the light follows it there and
+	// is left pointing at it for whatever frame comes next to overwrite.
+	app.render.light.eye = eye
+	gpu_buffer_write(app, &app.render.light_uniform, []Light{app.render.light})
 
 	encoder := wgpu.DeviceCreateCommandEncoder(app.window.device, &{label = label})
 	defer wgpu.CommandEncoderRelease(encoder)
@@ -103,14 +108,14 @@ icon_bake :: proc(
 	return icon
 }
 
-// View projection placing the camera far enough along ICON_DIR that bounds
-// fits the icon vertically.
+// View projection and eye placing the camera far enough along ICON_DIR that
+// bounds fits the icon vertically.
 @(private)
-icon_view_proj :: proc(bounds: Aabb, aspect: f32) -> Mat4 {
+icon_view_proj :: proc(bounds: Aabb, aspect: f32) -> (Mat4, Vec3) {
 	center := (bounds.min + bounds.max) / 2
 	radius := linalg.length(bounds.max - bounds.min) / 2 * ICON_MARGIN
 	distance := radius / math.tan(ICON_FOV_Y / 2)
 	eye := center + linalg.normalize(ICON_DIR) * distance
 	proj := perspective(ICON_FOV_Y, aspect, distance - radius, distance + radius)
-	return proj * look_at(eye, center, {0, 1, 0})
+	return proj * look_at(eye, center, {0, 1, 0}), eye
 }

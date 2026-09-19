@@ -2,7 +2,8 @@
 // hands over the bytes and gets back a MeshData.
 //
 // Only what the world pipelines can draw is read: positions, normals, uvs, and
-// each primitive's base color factor flattened into the vertex color. Every
+// each primitive's base color and roughness factors flattened onto its
+// vertices. Every
 // mesh the scene reaches becomes one MeshData, with each node's transform
 // baked into its positions and normals. Textures, skins and animations are
 // ignored, so a model arrives in its flat material colors, shaded only by the
@@ -114,6 +115,7 @@ GltfMaterial :: struct {
 @(private = "file")
 GltfPbr :: struct {
 	base_color: Maybe(Vec4) `json:"baseColorFactor"`,
+	roughness:  Maybe(f32) `json:"roughnessFactor"`,
 }
 
 // The mesh being built out of the nodes as they are walked.
@@ -298,13 +300,18 @@ gltf_primitive :: proc(doc: ^GltfDoc, bin: []byte, primitive: GltfPrimitive, wor
 	}
 	to_normal := normal_matrix(world)
 
+	// gltf defaults a material it does not describe, and every factor it
+	// leaves out, to one. Metalness is not read at all: with no environment to
+	// reflect, a metal would come out black rather than shiny.
 	color := Vec4{1, 1, 1, 1}
+	roughness: f32 = 1
 	if material, has_material := primitive.material.?; has_material {
 		if int(material) >= len(doc.materials) {
 			return false
 		}
 		if pbr, has_pbr := doc.materials[material].pbr.?; has_pbr {
 			color = pbr.base_color.? or_else color
+			roughness = pbr.roughness.? or_else 1
 		}
 	}
 
@@ -329,6 +336,7 @@ gltf_primitive :: proc(doc: ^GltfDoc, bin: []byte, primitive: GltfPrimitive, wor
 				color = color,
 				uv = uvs == nil ? {} : read_at(Vec2, uvs, uv_stride, i),
 				normal = normal,
+				roughness = roughness,
 			},
 		)
 	}

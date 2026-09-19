@@ -6,13 +6,16 @@ package main
 import "../../../engine"
 
 DEMO_SLOT_GLB :: #load("models/demo_slot.glb")
+// A smooth shaded sphere, which is the shape a highlight can actually be seen
+// on. Kept as a reference to hold the lit pipeline against blender's preview.
+UV_SPHERE_GLB :: #load("models/uv_sphere.glb")
 
 // Every glb a "casino:model" component may name, paired with the path it is
 // embedded from.
 MODELS := [?]struct {
 	path: string,
 	glb:  []byte,
-}{{"models/demo_slot.glb", DEMO_SLOT_GLB}}
+}{{"models/demo_slot.glb", DEMO_SLOT_GLB}, {"models/uv_sphere.glb", UV_SPHERE_GLB}}
 
 // Meshes already imported, keyed by path. A model is loaded once and kept
 // for the life of the process, because every drawable built from it keeps its

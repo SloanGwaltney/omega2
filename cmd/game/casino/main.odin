@@ -114,6 +114,9 @@ main :: proc() {
 	slot_machine_create(app, {-1.5, 0, 0})
 	slot_machine_create(app, {1.5, 0, 0})
 
+	// Reference sphere for the lit pipeline, sat between the machines.
+	scene_spawn(app, UV_SPHERE_SCENE, {0, 0, -2})
+
 	patron_create(app, {-6, 0, 8})
 	patron_create(app, {6, 0, 8})
 	patron_create(app, {0, 0, 12})

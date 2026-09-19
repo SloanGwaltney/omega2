@@ -9,10 +9,14 @@ UI_SHADER :: #load("shaders/ui.wgsl", string)
 // Vertex layout consumed by the world pipelines. The unlit one ignores the
 // normal.
 Vertex :: struct {
-	pos:    Vec3,
-	color:  Vec4,
-	uv:     Vec2,
-	normal: Vec3,
+	pos:      Vec3,
+	color:    Vec4,
+	uv:       Vec2,
+	normal:   Vec3,
+	// Roughness of the material this vertex came from, which sizes the
+	// highlight. Flattened per vertex for the same reason the base color is:
+	// one mesh carries every material it was built from.
+	roughness: f32,
 }
 
 // A key light and the hemisphere fill standing in for bounced light, which is
@@ -30,6 +34,9 @@ Light :: struct {
 	_pad2:     f32,
 	ground:    Vec3,
 	_pad3:     f32,
+	// Where the frame is viewed from, which the highlight is measured against.
+	eye:       Vec3,
+	_pad4:     f32,
 }
 
 // A key from the front upper left over a cool sky and warm ground fill, close
@@ -123,6 +130,7 @@ create_world_pipeline :: proc(app: ^App, label: string, source: string) -> wgpu.
 		{format = .Float32x4, offset = u64(offset_of(Vertex, color)), shaderLocation = 1},
 		{format = .Float32x2, offset = u64(offset_of(Vertex, uv)), shaderLocation = 2},
 		{format = .Float32x3, offset = u64(offset_of(Vertex, normal)), shaderLocation = 3},
+		{format = .Float32, offset = u64(offset_of(Vertex, roughness)), shaderLocation = 4},
 	}
 	layout := wgpu.VertexBufferLayout {
 		stepMode       = .Vertex,

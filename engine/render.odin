@@ -172,8 +172,10 @@ DrawEntry :: struct {
 upload_frame_uniforms_system :: proc(app: ^App) #no_bounds_check {
 	zone_begin(.FrameUniforms)
 	w := app.world
-	view_proj := [1]Mat4{camera_view_proj(app)}
+	proj, eye := camera_view_proj(app)
+	view_proj := [1]Mat4{proj}
 	gpu_buffer_write(app, &app.render.camera_uniform, view_proj[:])
+	app.render.light.eye = eye
 	ui_proj := [1]Mat4{ortho_screen(f32(app.window.config.width), f32(app.window.config.height))}
 	gpu_buffer_write(app, &app.render.ui_uniform, ui_proj[:])
 	light := [1]Light{app.render.light}

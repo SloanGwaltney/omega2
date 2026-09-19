@@ -1,0 +1,4 @@
+[
+	{"name": "engine:transform"},
+	{"name": "casino:model", "data": {"path": "models/uv_sphere.glb"}}
+]

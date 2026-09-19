@@ -10,9 +10,10 @@ Camera :: struct {
 	far:   f32,
 }
 
-// View projection matrix of the first entity holding a Camera and a Transform.
-// Panics when there is none, because nothing could be drawn without one.
-camera_view_proj :: proc(app: ^App) -> Mat4 {
+// View projection matrix and eye position of the first entity holding a Camera
+// and a Transform. Panics when there is none, because nothing could be drawn
+// without one.
+camera_view_proj :: proc(app: ^App) -> (Mat4, Vec3) {
 	w := app.world
 	aspect := f32(app.window.config.width) / f32(app.window.config.height)
 	for i in 0 ..< w.count {
@@ -23,7 +24,7 @@ camera_view_proj :: proc(app: ^App) -> Mat4 {
 			continue
 		}
 		view := linalg.matrix4_inverse(linalg.matrix4_from_trs_f32(transform.pos, transform.rot, Vec3{1, 1, 1}))
-		return perspective(camera.fov_y, aspect, camera.near, camera.far) * view
+		return perspective(camera.fov_y, aspect, camera.near, camera.far) * view, transform.pos
 	}
 	panic("no camera in the world")
 }
