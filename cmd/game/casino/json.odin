@@ -31,6 +31,12 @@ casino_component_loader :: proc(
 		return component_load(&g.slot_machine, e, data)
 	case "casino:patron":
 		return component_load(&g.patron, e, data)
+	case "casino:model":
+		spec: ModelSpec
+		if !engine.component_unmarshal(data, &spec) {
+			return false
+		}
+		return model_load(w, e, spec)
 	case:
 		fmt.panicf("unknown component %q", name)
 	}
