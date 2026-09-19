@@ -28,6 +28,24 @@ struct Light {
 // physical exponent, so this is picked to land near blender's preview.
 const MAX_SHININESS: f32 = 256.0;
 
+// How much of the key a surface mirrors back when faced head on. A real
+// dielectric returns about four percent, but one directional light is standing
+// in for a whole environment here, so it is left far higher than that and set
+// instead to land the peak inside the tone map's rolloff rather than clipping.
+const SPECULAR_STRENGTH: f32 = 0.35;
+
+// Narkowicz's curve fit to the aces filmic tone map. Rolls a highlight off
+// towards white instead of clipping at it, which is what keeps a bright
+// specular from reading as a flat white patch.
+fn tonemap(c: vec3<f32>) -> vec3<f32> {
+	let a = 2.51;
+	let b = 0.03;
+	let d = 2.43;
+	let e = 0.59;
+	let f = 0.14;
+	return clamp((c * (a * c + b)) / (c * (d * c + e) + f), vec3<f32>(0.0), vec3<f32>(1.0));
+}
+
 @group(0) @binding(0) var<uniform> view_proj: mat4x4<f32>;
 // Model matrices packed in draw order, reached through the draw's firstInstance.
 @group(0) @binding(1) var<storage, read> models: array<mat4x4<f32>>;
@@ -74,6 +92,11 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
 	// Weighted by the key, so a face turned away from the light carries no
 	// highlight however the eye is placed.
 	let gloss = pow(max(dot(n, half_dir), 0.0), shininess) * spread * lambert;
+	// Schlick: a surface mirrors far more at a grazing angle than head on,
+	// which is what puts a sheen along the edge of a round shape.
+	let grazing = pow(1.0 - max(dot(half_dir, view_dir), 0.0), 5.0);
+	let fresnel = SPECULAR_STRENGTH + (1.0 - SPECULAR_STRENGTH) * grazing;
 
-	return vec4<f32>(in.color.rgb * (key + fill) + gloss * light.color, in.color.a);
+	let lit = in.color.rgb * (key + fill) + gloss * fresnel * light.color;
+	return vec4<f32>(tonemap(lit), in.color.a);
 }
