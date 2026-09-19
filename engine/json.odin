@@ -55,8 +55,12 @@ entity_from_json :: proc(w: ^World, src: string, load: ComponentLoader = nil) ->
 
 // Fills ptr from a component's data. Fields the json leaves out keep whatever
 // ptr already holds, so seed it with any default that is not the zero value
-// before calling.
+// before calling. A component with no data at all keeps every default, which
+// is what unmarshalling a null would wipe.
 component_unmarshal :: proc(data: json.Value, ptr: ^$T) -> bool {
+	if data == nil {
+		return true
+	}
 	bytes, err := json.marshal(data, allocator = context.temp_allocator)
 	if err != nil {
 		return false
