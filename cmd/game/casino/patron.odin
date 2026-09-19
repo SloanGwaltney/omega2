@@ -90,8 +90,9 @@ patron_create :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity {
 @(private = "file")
 patron_seat :: proc(w: ^engine.World, machine: engine.Entity) -> engine.Vec3 {
 	t := engine.pool_get(&w.transform, machine)
+	box := engine.pool_get(&w.aabb, machine)
 	front := linalg.quaternion_mul_vector3(t.rot, engine.Vec3{0, 0, 1})
-	return t.pos + front * (SLOT_HALF_DEPTH + PATRON_SEAT_DISTANCE)
+	return t.pos + front * (box.max.z + PATRON_SEAT_DISTANCE)
 }
 
 // Claims the first unoccupied machine for each free patron, then walks every

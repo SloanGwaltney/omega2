@@ -4,18 +4,9 @@
 package main
 
 import "../../../engine"
+import "core:fmt"
 import "core:strings"
 import "vendor:sdl3"
-
-// An item's body: the mesh it is drawn with and the bounds it occupies. Shared
-// by the spawn that puts one in the world and the bake that pictures it in the
-// shop, so the two cannot drift.
-Model :: struct {
-	pipeline: engine.Pipeline,
-	vertices: []byte,
-	indices:  []engine.Index,
-	bounds:   engine.Aabb,
-}
 
 // One thing on offer. Stats are free text until the items are real, and an
 // item without a spawn cannot be bought yet.
@@ -25,10 +16,10 @@ ShopItem :: struct {
 	stats:       string,
 	// What buying one takes out of the bank.
 	cost:        f32,
-	// The item's body, or nil while the item has no model. Baked into icon by
-	// shop_bake_icons. A pointer because package globals are initialised in
-	// file order, so copying the model in here would copy it before it is set.
-	model:       ^Model,
+	// Path of the model the item is pictured with, empty while it has none.
+	// The same model its spawn puts in the world, named again here until an
+	// item carries the scene it spawns from.
+	model:       string,
 	// Picture of model shown in the item's cell, nil until it is baked.
 	icon:        ^engine.Texture,
 	// Spawns the item's body for the player to place, or nil while the item
@@ -44,7 +35,7 @@ SHOP_ITEMS := [?]ShopItem {
 		description = "Three reels, house edge.",
 		stats = "Cost $2500\nRTP 80-99%\nFootprint 1x1",
 		cost = 2500,
-		model = &SLOT_MODEL,
+		model = SLOT_MODEL_PATH,
 		spawn = slot_machine_spawn,
 		activate = slot_machine_activate,
 	},
@@ -88,17 +79,21 @@ SHOP_ICON_HEIGHT :: u32(SHOP_PICTURE_HEIGHT * 2)
 // before the first frame.
 shop_bake_icons :: proc(app: ^engine.App) {
 	for &item in SHOP_ITEMS {
-		if item.model == nil {
+		if item.model == "" {
 			continue
+		}
+		mesh, ok := model_mesh(item.model)
+		if !ok {
+			fmt.panicf("unknown model %q", item.model)
 		}
 		item.icon = new(engine.Texture)
 		item.icon^ = engine.icon_bake(
 			app,
 			item.name,
-			item.model.pipeline,
-			item.model.vertices,
-			item.model.indices,
-			item.model.bounds,
+			.Unlit,
+			mesh.data,
+			mesh.indices,
+			mesh.bounds,
 			SHOP_ICON_WIDTH,
 			SHOP_ICON_HEIGHT,
 		)
