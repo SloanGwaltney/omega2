@@ -58,6 +58,7 @@ ui_system :: proc(app: ^App) {
 	if app.ui_callback != nil {
 		app.ui_callback(app, ui)
 	}
+	frame_debug_ui(app, ui)
 	if ui.index_count == 0 {
 		return
 	}
