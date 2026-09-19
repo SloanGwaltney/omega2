@@ -6,19 +6,21 @@ import "core:slice"
 // Vertex format a mesh's data is packed in, which picks the gpu buffer it
 // lands in. Many pipelines can share one layout.
 VertexLayout :: enum {
-	Unlit,
+	Mesh,
 }
 
 // Draw state a mesh is rendered with.
 Pipeline :: enum {
 	Unlit,
+	Lit,
 }
 
-// The layout a pipeline reads its vertices in.
+// The layout a pipeline reads its vertices in. Unlit and Lit share one, so the
+// same mesh can be drawn either way without being uploaded twice.
 pipeline_layout :: proc(pipeline: Pipeline) -> VertexLayout {
 	switch pipeline {
-	case .Unlit:
-		return .Unlit
+	case .Unlit, .Lit:
+		return .Mesh
 	}
 	panic("unknown pipeline")
 }
@@ -26,7 +28,7 @@ pipeline_layout :: proc(pipeline: Pipeline) -> VertexLayout {
 // Size of one vertex in a layout, used to turn byte offsets into vertex indices.
 layout_stride :: proc(layout: VertexLayout) -> u64 {
 	switch layout {
-	case .Unlit:
+	case .Mesh:
 		return size_of(Vertex)
 	}
 	panic("unknown vertex layout")
@@ -83,8 +85,8 @@ mesh_upload :: proc(app: ^App, layout: VertexLayout, data: []byte, indices: []In
 @(private)
 vertex_buffer :: proc(app: ^App, layout: VertexLayout) -> ^GpuBuffer {
 	switch layout {
-	case .Unlit:
-		return &app.render.unlit_vertices
+	case .Mesh:
+		return &app.render.mesh_vertices
 	}
 	panic("unknown vertex layout")
 }

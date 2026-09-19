@@ -107,7 +107,7 @@ shop_bake_icons :: proc(app: ^engine.App) {
 		item.icon^ = engine.icon_bake(
 			app,
 			item.name,
-			.Unlit,
+			.Lit,
 			mesh.data,
 			mesh.indices,
 			mesh.bounds,

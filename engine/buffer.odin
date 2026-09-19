@@ -3,7 +3,7 @@ package engine
 import "core:mem"
 import "vendor:wgpu"
 
-UNLIT_VERTEX_BUFFER_SIZE :: 4 * mem.Megabyte
+MESH_VERTEX_BUFFER_SIZE :: 4 * mem.Megabyte
 UI_VERTEX_BUFFER_SIZE :: MAX_UI_VERTICES * size_of(UiVertex)
 UI_INDEX_BUFFER_SIZE :: MAX_UI_INDICES * size_of(Index)
 INDEX_BUFFER_SIZE :: 1 * mem.Megabyte
@@ -23,23 +23,25 @@ GpuBuffer :: struct {
 
 // Creates the shared mesh buffers and the per frame camera and model buffers.
 create_buffers :: proc(app: ^App) {
-	app.render.unlit_vertices = gpu_buffer_create(app, "unlit vertices", UNLIT_VERTEX_BUFFER_SIZE, {.Vertex, .CopyDst})
+	app.render.mesh_vertices = gpu_buffer_create(app, "mesh vertices", MESH_VERTEX_BUFFER_SIZE, {.Vertex, .CopyDst})
 	app.render.ui_vertices = gpu_buffer_create(app, "ui vertices", UI_VERTEX_BUFFER_SIZE, {.Vertex, .CopyDst})
 	app.render.ui_indices = gpu_buffer_create(app, "ui indices", UI_INDEX_BUFFER_SIZE, {.Index, .CopyDst})
 	app.render.indices = gpu_buffer_create(app, "indices", INDEX_BUFFER_SIZE, {.Index, .CopyDst})
 	app.render.camera_uniform = gpu_buffer_create(app, "camera", size_of(Mat4), {.Uniform, .CopyDst})
 	app.render.models = gpu_buffer_create(app, "models", MODEL_BUFFER_SIZE, {.Storage, .CopyDst})
 	app.render.ui_uniform = gpu_buffer_create(app, "ui projection", size_of(Mat4), {.Uniform, .CopyDst})
+	app.render.light_uniform = gpu_buffer_create(app, "light", size_of(Light), {.Uniform, .CopyDst})
 }
 
 delete_buffers :: proc(app: ^App) {
-	wgpu.BufferRelease(app.render.unlit_vertices.handle)
+	wgpu.BufferRelease(app.render.mesh_vertices.handle)
 	wgpu.BufferRelease(app.render.ui_vertices.handle)
 	wgpu.BufferRelease(app.render.ui_indices.handle)
 	wgpu.BufferRelease(app.render.indices.handle)
 	wgpu.BufferRelease(app.render.camera_uniform.handle)
 	wgpu.BufferRelease(app.render.models.handle)
 	wgpu.BufferRelease(app.render.ui_uniform.handle)
+	wgpu.BufferRelease(app.render.light_uniform.handle)
 }
 
 // Uploads data at the current bump offset and returns that offset in bytes.

@@ -3,13 +3,43 @@ package engine
 import "vendor:wgpu"
 
 UNLIT_SHADER :: #load("shaders/unlit.wgsl", string)
+LIT_SHADER :: #load("shaders/lit.wgsl", string)
 UI_SHADER :: #load("shaders/ui.wgsl", string)
 
-// Vertex layout consumed by the unlit pipeline.
+// Vertex layout consumed by the world pipelines. The unlit one ignores the
+// normal.
 Vertex :: struct {
-	pos:   Vec3,
-	color: Vec4,
-	uv:    Vec2,
+	pos:    Vec3,
+	color:  Vec4,
+	uv:     Vec2,
+	normal: Vec3,
+}
+
+// A key light and the hemisphere fill standing in for bounced light, which is
+// what the lit pipeline shades with. Colors are linear, direction points at
+// the light and must be normalized.
+//
+// The padding is the std140 rule the shader reads this under: a vec3 is four
+// bytes short of the sixteen it is aligned to.
+Light :: struct {
+	direction: Vec3,
+	_pad0:     f32,
+	color:     Vec3,
+	_pad1:     f32,
+	sky:       Vec3,
+	_pad2:     f32,
+	ground:    Vec3,
+	_pad3:     f32,
+}
+
+// A key from the front upper left over a cool sky and warm ground fill, close
+// enough to blender's default studio light to make an export recognisable.
+// Key and sky sum to one, so a surface facing the light keeps its base color.
+LIGHT_DEFAULT :: Light {
+	direction = {0.408, 0.816, 0.408},
+	color     = {0.8, 0.8, 0.8},
+	sky       = {0.16, 0.18, 0.2},
+	ground    = {0.1, 0.09, 0.08},
 }
 
 // Vertex layout consumed by the ui pipeline. Positions are in pixels, with the
@@ -25,6 +55,8 @@ pipeline_handle :: proc(app: ^App, pipeline: Pipeline) -> wgpu.RenderPipeline {
 	switch pipeline {
 	case .Unlit:
 		return app.render.unlit_pipeline
+	case .Lit:
+		return app.render.lit_pipeline
 	}
 	panic("unknown pipeline")
 }
@@ -37,6 +69,7 @@ create_frame_bind_group :: proc(app: ^App) {
 		{binding = 0, visibility = {.Vertex}, buffer = {type = .Uniform, minBindingSize = size_of(Mat4)}},
 		{binding = 1, visibility = {.Vertex}, buffer = {type = .ReadOnlyStorage, minBindingSize = size_of(Mat4)}},
 		{binding = 2, visibility = {.Vertex}, buffer = {type = .Uniform, minBindingSize = size_of(Mat4)}},
+		{binding = 3, visibility = {.Fragment}, buffer = {type = .Uniform, minBindingSize = size_of(Light)}},
 	}
 	app.render.frame_layout = wgpu.DeviceCreateBindGroupLayout(
 		app.window.device,
@@ -50,6 +83,7 @@ create_frame_bind_group :: proc(app: ^App) {
 		{binding = 0, buffer = app.render.camera_uniform.handle, size = app.render.camera_uniform.size},
 		{binding = 1, buffer = app.render.models.handle, size = app.render.models.size},
 		{binding = 2, buffer = app.render.ui_uniform.handle, size = app.render.ui_uniform.size},
+		{binding = 3, buffer = app.render.light_uniform.handle, size = app.render.light_uniform.size},
 	}
 	app.render.frame_bind_group = wgpu.DeviceCreateBindGroup(
 		app.window.device,
@@ -60,30 +94,35 @@ create_frame_bind_group :: proc(app: ^App) {
 	}
 }
 
-// Builds the unlit pipeline: one interleaved vertex buffer, the frame bind
-// group at group 0, triangle list drawn with an index buffer. The index format
-// is supplied at draw time, not here, because the topology is not a strip.
-create_unlit_pipeline :: proc(app: ^App) {
+// Builds a world pipeline from source: one interleaved vertex buffer, the
+// frame bind group at group 0, triangle list drawn with an index buffer and
+// depth tested against the rest of the world. The index format is supplied at
+// draw time, not here, because the topology is not a strip.
+@(private = "file")
+create_world_pipeline :: proc(app: ^App, label: string, source: string) -> wgpu.RenderPipeline {
 	module := wgpu.DeviceCreateShaderModule(
 		app.window.device,
-		&{nextInChain = &wgpu.ShaderSourceWGSL{chain = {sType = .ShaderSourceWGSL}, code = UNLIT_SHADER}},
+		&{nextInChain = &wgpu.ShaderSourceWGSL{chain = {sType = .ShaderSourceWGSL}, code = source}},
 	)
 	if module == nil {
-		panic("failed to compile unlit shader")
+		panic("failed to compile world shader")
 	}
 	defer wgpu.ShaderModuleRelease(module)
 
 	layouts := [?]wgpu.BindGroupLayout{app.render.frame_layout}
 	pipeline_layout := wgpu.DeviceCreatePipelineLayout(
 		app.window.device,
-		&{label = "unlit", bindGroupLayoutCount = len(layouts), bindGroupLayouts = &layouts[0]},
+		&{label = label, bindGroupLayoutCount = len(layouts), bindGroupLayouts = &layouts[0]},
 	)
 	defer wgpu.PipelineLayoutRelease(pipeline_layout)
 
+	// A pipeline may leave the normal unread, which wgpu allows; the attribute
+	// is declared either way so both share one vertex buffer.
 	attributes := [?]wgpu.VertexAttribute {
 		{format = .Float32x3, offset = u64(offset_of(Vertex, pos)), shaderLocation = 0},
 		{format = .Float32x4, offset = u64(offset_of(Vertex, color)), shaderLocation = 1},
 		{format = .Float32x2, offset = u64(offset_of(Vertex, uv)), shaderLocation = 2},
+		{format = .Float32x3, offset = u64(offset_of(Vertex, normal)), shaderLocation = 3},
 	}
 	layout := wgpu.VertexBufferLayout {
 		stepMode       = .Vertex,
@@ -107,26 +146,32 @@ create_unlit_pipeline :: proc(app: ^App) {
 		targets     = &target,
 	}
 
-	app.render.unlit_pipeline = wgpu.DeviceCreateRenderPipeline(
+	pipeline := wgpu.DeviceCreateRenderPipeline(
 		app.window.device,
 		&{
-			label = "unlit",
+			label = label,
 			layout = pipeline_layout,
-			vertex = {
-				module = module,
-				entryPoint = "vs_main",
-				bufferCount = 1,
-				buffers = &layout,
-			},
+			vertex = {module = module, entryPoint = "vs_main", bufferCount = 1, buffers = &layout},
 			primitive = {topology = .TriangleList, frontFace = .CCW, cullMode = .Back},
 			depthStencil = &depth_stencil,
 			multisample = {count = 1, mask = ~u32(0)},
 			fragment = &fragment,
 		},
 	)
-	if app.render.unlit_pipeline == nil {
-		panic("failed to create unlit pipeline")
+	if pipeline == nil {
+		panic("failed to create world pipeline")
 	}
+	return pipeline
+}
+
+// Draws a mesh in its flat vertex colors, ignoring the normal.
+create_unlit_pipeline :: proc(app: ^App) {
+	app.render.unlit_pipeline = create_world_pipeline(app, "unlit", UNLIT_SHADER)
+}
+
+// Draws a mesh shaded by the frame's Light.
+create_lit_pipeline :: proc(app: ^App) {
+	app.render.lit_pipeline = create_world_pipeline(app, "lit", LIT_SHADER)
 }
 
 // Builds the ui pipeline: the same vertex layout and frame bind group as unlit,

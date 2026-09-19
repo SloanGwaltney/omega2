@@ -58,7 +58,7 @@ model_load :: proc(w: ^engine.World, e: engine.Entity, spec: ModelSpec) -> bool 
 	engine.pool_add(
 		&w.drawable_upload,
 		e,
-		engine.DrawableUpload{pipeline = .Unlit, data = mesh.data, indices = mesh.indices},
+		engine.DrawableUpload{pipeline = .Lit, data = mesh.data, indices = mesh.indices},
 	)
 	engine.pool_add(&w.aabb, e, mesh.bounds)
 	return true

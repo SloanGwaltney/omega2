@@ -53,6 +53,19 @@ transform_matrix :: proc(t: Transform) -> (m: Mat4) {
 	return
 }
 
+// The matrix that carries a normal through m. The inverse transpose, so a non
+// uniform scale tilts a normal away from the surface rather than with it.
+normal_matrix :: proc(m: Mat4) -> Mat4 {
+	return linalg.transpose(linalg.inverse(m))
+}
+
+// Carries n through m and rescales it to unit length. m must be the
+// normal_matrix of the transform the positions went through.
+transform_normal :: proc(m: Mat4, n: Vec3) -> Vec3 {
+	turned := m * Vec4{n.x, n.y, n.z, 0}
+	return linalg.normalize0(Vec3{turned.x, turned.y, turned.z})
+}
+
 // Right handed view matrix for a camera at eye looking at target.
 look_at :: proc(eye, target, up: Vec3) -> Mat4 {
 	return linalg.matrix4_look_at_f32(eye, target, up)

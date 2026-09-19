@@ -1,11 +1,12 @@
 // Reading geometry out of a binary gltf. The engine does no io, so the game
 // hands over the bytes and gets back a MeshData.
 //
-// Only what the unlit pipeline can draw is read: positions, uvs, and each
-// primitive's base color factor flattened into the vertex color. Every mesh
-// the scene reaches becomes one MeshData, with each node's transform baked
-// into its positions. Normals, textures, skins and animations are ignored, so
-// a model arrives flat shaded in its material colors.
+// Only what the world pipelines can draw is read: positions, normals, uvs, and
+// each primitive's base color factor flattened into the vertex color. Every
+// mesh the scene reaches becomes one MeshData, with each node's transform
+// baked into its positions and normals. Textures, skins and animations are
+// ignored, so a model arrives in its flat material colors, shaded only by the
+// lit pipeline's own light.
 package engine
 
 import "base:intrinsics"
@@ -80,8 +81,8 @@ GltfMesh :: struct {
 
 @(private = "file")
 GltfPrimitive :: struct {
-	// Accessor index per attribute name, of which POSITION and TEXCOORD_0 are
-	// read.
+	// Accessor index per attribute name, of which POSITION, NORMAL and
+	// TEXCOORD_0 are read.
 	attributes: map[string]u32,
 	indices:    Maybe(u32),
 	material:   Maybe(u32),
@@ -283,6 +284,20 @@ gltf_primitive :: proc(doc: ^GltfDoc, bin: []byte, primitive: GltfPrimitive, wor
 		}
 	}
 
+	// A primitive that ships no normals is left facing straight up, which is
+	// as much as can be said about it without rebuilding them from the faces.
+	normals: []byte
+	normal_stride: u32
+	if normal, has_normal := primitive.attributes["NORMAL"]; has_normal {
+		normal_count: u32
+		normal_ok: bool
+		normals, normal_stride, normal_count, normal_ok = accessor(doc, bin, normal, "VEC3", COMPONENT_F32)
+		if !normal_ok || normal_count != count {
+			return false
+		}
+	}
+	to_normal := normal_matrix(world)
+
 	color := Vec4{1, 1, 1, 1}
 	if material, has_material := primitive.material.?; has_material {
 		if int(material) >= len(doc.materials) {
@@ -303,9 +318,18 @@ gltf_primitive :: proc(doc: ^GltfDoc, bin: []byte, primitive: GltfPrimitive, wor
 		pos := Vec3{projected.x, projected.y, projected.z}
 		b.bounds.min = vec3_min(b.bounds.min, pos)
 		b.bounds.max = vec3_max(b.bounds.max, pos)
+		normal := Vec3{0, 1, 0}
+		if normals != nil {
+			normal = transform_normal(to_normal, read_at(Vec3, normals, normal_stride, i))
+		}
 		append(
 			&b.vertices,
-			Vertex{pos = pos, color = color, uv = uvs == nil ? {} : read_at(Vec2, uvs, uv_stride, i)},
+			Vertex {
+				pos = pos,
+				color = color,
+				uv = uvs == nil ? {} : read_at(Vec2, uvs, uv_stride, i),
+				normal = normal,
+			},
 		)
 	}
 

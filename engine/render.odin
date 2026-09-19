@@ -23,14 +23,19 @@ Render :: struct {
 	depth_texture:    wgpu.Texture,
 	depth_view:       wgpu.TextureView,
 	unlit_pipeline:   wgpu.RenderPipeline,
+	lit_pipeline:     wgpu.RenderPipeline,
 	ui_pipeline:      wgpu.RenderPipeline,
-	unlit_vertices:   GpuBuffer,
+	mesh_vertices:    GpuBuffer,
 	ui_vertices:      GpuBuffer,
 	ui_indices:       GpuBuffer,
 	indices:          GpuBuffer,
 	camera_uniform:   GpuBuffer,
 	ui_uniform:       GpuBuffer,
+	light_uniform:    GpuBuffer,
 	models:           GpuBuffer,
+	// What the lit pipeline shades with, uploaded every frame so the game can
+	// change it whenever it likes.
+	light:            Light,
 	frame_layout:     wgpu.BindGroupLayout,
 	frame_bind_group: wgpu.BindGroup,
 	texture_layout:   wgpu.BindGroupLayout,
@@ -58,7 +63,12 @@ create_render :: proc(app: ^App) {
 	create_texture_layout(app)
 	create_font(app)
 	create_unlit_pipeline(app)
+	create_lit_pipeline(app)
 	create_ui_pipeline(app)
+	// Written now as well as every frame, because icons are baked before the
+	// first frame gets the chance to.
+	app.render.light = LIGHT_DEFAULT
+	gpu_buffer_write(app, &app.render.light_uniform, []Light{LIGHT_DEFAULT})
 }
 
 @(private)
@@ -67,6 +77,7 @@ delete_render :: proc(app: ^App) {
 	delete_depth_texture(app)
 	delete_buffers(app)
 	wgpu.RenderPipelineRelease(app.render.unlit_pipeline)
+	wgpu.RenderPipelineRelease(app.render.lit_pipeline)
 	wgpu.RenderPipelineRelease(app.render.ui_pipeline)
 	delete_font(&app.render.font)
 	wgpu.BindGroupLayoutRelease(app.render.texture_layout)
@@ -165,6 +176,8 @@ upload_frame_uniforms_system :: proc(app: ^App) #no_bounds_check {
 	gpu_buffer_write(app, &app.render.camera_uniform, view_proj[:])
 	ui_proj := [1]Mat4{ortho_screen(f32(app.window.config.width), f32(app.window.config.height))}
 	gpu_buffer_write(app, &app.render.ui_uniform, ui_proj[:])
+	light := [1]Light{app.render.light}
+	gpu_buffer_write(app, &app.render.light_uniform, light[:])
 
 	app.render.batch_count = 0
 	drawn: u32
