@@ -142,6 +142,25 @@ the working directory entirely. `#load_directory` is the next step up, and
 runtime reads only become worth it once content should change without a
 rebuild.
 
+### Content json that is not a scene
+
+Not every document builds an entity. The buy menu's items live in
+`cmd/game/casino/scenes/shop.json`, read straight with `json.unmarshal` into a
+plain struct:
+
+```json
+{"name": "Slots", "description": "Three reels, house edge.",
+ "price": 2500, "model": "models/demo_slot.glb", "behavior": "slots"}
+```
+
+`model` and `behavior` are both keys into code, for the same reason `Drawable`
+and `Interactable` cannot be named in a scene: a mesh and a proc are not plain
+data. `model` resolves through `MODELS`, and `behavior` resolves through
+`shop_behavior` in `shop.odin`, which returns the spawn and activate pair the
+name stands for. Adding an item that needs new code means one json entry and
+one case there; an item with no `behavior` shows in the grid and cannot be
+bought.
+
 ## Models from gltf
 
 `engine.mesh_from_glb` turns binary gltf bytes into a `MeshData` — packed
