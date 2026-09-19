@@ -1,6 +1,7 @@
 package engine
 
 import "core:hash"
+import "core:slice"
 
 // Vertex format a mesh's data is packed in, which picks the gpu buffer it
 // lands in. Many pipelines can share one layout.
@@ -96,4 +97,21 @@ MeshData :: struct {
 	data:    []byte,
 	indices: []Index,
 	bounds:  Aabb,
+}
+
+// Moves a mesh's vertices so its footprint is centred on the origin with its
+// base at y zero, which is where a transform, an Aabb and a seat in front of
+// a prop all expect the origin to be. An exporter is free to model about any
+// point, so an imported mesh goes through this before it is used.
+mesh_ground :: proc(mesh: ^MeshData) {
+	offset := Vec3 {
+		(mesh.bounds.min.x + mesh.bounds.max.x) / 2,
+		mesh.bounds.min.y,
+		(mesh.bounds.min.z + mesh.bounds.max.z) / 2,
+	}
+	for &v in slice.reinterpret([]Vertex, mesh.data) {
+		v.pos -= offset
+	}
+	mesh.bounds.min -= offset
+	mesh.bounds.max -= offset
 }
