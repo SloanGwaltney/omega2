@@ -158,6 +158,25 @@ either can feed `DrawableUpload`, `icon_bake` and the `Aabb` pool. Games own
 file io here too: the loader takes bytes and the casino embeds the model with
 `#load`, the same rule `entity_from_json` follows.
 
+### Naming a model in a scene
+
+A mesh is not plain data, so a scene names one through a game component. The
+casino's is `casino:model`:
+
+```json
+[
+	{"name": "engine:transform"},
+	{"name": "casino:model", "data": {"path": "models/demo_slot.glb"}}
+]
+```
+
+The path is a key into `MODELS` in `cmd/game/casino/model.odin`, the table of
+glbs embedded with `#load`, not a runtime file read; adding a model means one
+`#load` and one entry there. A model is imported once and cached by path, so
+naming the same one in two scenes reads the glb once. Loading it attaches the
+`DrawableUpload` and the `Aabb` the importer measured, and the transform
+places it as it stands.
+
 Export from Blender as **glTF Binary (.glb)** with its defaults. `+Y Up` and
 CCW winding already match the camera and the unlit pipeline's `frontFace`.
 
@@ -166,9 +185,12 @@ Two things about the geometry that arrives:
 - **Every mesh in the scene is flattened into one.** Node transforms are baked
   into the positions and all primitives are concatenated, so the hierarchy is
   gone by the time the mesh is returned.
-- **Blender models about the origin, our convention is origin at base.** Lift a
-  spawned model by `-bounds.min.y` or it sits half under the floor — see
-  `demo_model_create`.
+- **An exporter models about whatever point it likes, our convention is the
+  base centre.** `engine.mesh_ground` moves a mesh's vertices so its footprint
+  is centred on the origin with its base at y zero, and the casino runs it on
+  every model as it is imported. Skip it and the prop draws offset from its own
+  transform, which throws off its `Aabb`, what the player's ray hits and
+  anything placed relative to it.
 
 ### What it does not support yet
 
