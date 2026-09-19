@@ -12,10 +12,6 @@ import "core:math/rand"
 // scene fails the build rather than the launch.
 SLOT_JSON :: #load("scenes/slot_machine.json", string)
 
-// The model the scene names, repeated here for the shop icon until an item
-// carries its scene.
-SLOT_MODEL_PATH :: "models/demo_slot.glb"
-
 // A playable machine. Needs the drawable and Aabb slot_machine_spawn gives
 // it, which is what the player's ray hits.
 SlotMachine :: struct {

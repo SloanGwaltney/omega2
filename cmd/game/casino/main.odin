@@ -83,8 +83,9 @@ bank_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 main :: proc() {
 	app := engine.new_app()
 	defer engine.delete_app(app)
+	shop_load()
 	shop_bake_icons(app)
-	defer shop_delete_icons()
+	defer shop_unload()
 
 	// Too large for the stack.
 	game := new(Game)

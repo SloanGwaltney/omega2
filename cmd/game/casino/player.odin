@@ -32,7 +32,7 @@ Game :: struct {
 	// pause menu does.
 	shop_open:     bool,
 	// Cells of the buy menu showing their stats instead of their picture.
-	shop_details:  [len(SHOP_ITEMS)]bool,
+	shop_details:  [SHOP_MAX_ITEMS]bool,
 	// The item the player is positioning, if any. Placing keeps the mouse
 	// captured, so the player still walks and looks while it is set.
 	placement:     Maybe(Placement),

@@ -41,7 +41,7 @@ placement_begin :: proc(app: ^engine.App, item: ShopItem) {
 	}
 	g.placement = Placement {
 		entity   = item.spawn(app, pos),
-		cost     = item.cost,
+		cost     = item.price,
 		activate = item.activate,
 	}
 }

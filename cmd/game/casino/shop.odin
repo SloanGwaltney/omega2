@@ -1,74 +1,94 @@
 // The buy menu: b opens a grid of the things the casino can buy, each cell a
 // placeholder picture, a description and buy and details buttons. Buying does
 // nothing yet, and details swaps the cell to its stats until back is clicked.
+// The items themselves come from shop.json.
 package main
 
 import "../../../engine"
+import "core:encoding/json"
 import "core:fmt"
 import "core:strings"
 import "vendor:sdl3"
 
-// One thing on offer. Stats are free text until the items are real, and an
-// item without a spawn cannot be bought yet.
+// The item list, embedded at compile time so a renamed file fails the build
+// rather than the launch.
+SHOP_JSON :: #load("scenes/shop.json", string)
+// How many items the menu can hold, the size of the per cell state the game
+// carries. Loading more than this is a content bug.
+SHOP_MAX_ITEMS :: 12
+
+// Spawns an item's body for the player to place.
+ShopSpawn :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity
+// Makes a spawned body do its job, run once its placement is confirmed.
+ShopActivate :: proc(app: ^engine.App, e: engine.Entity)
+
+// One thing on offer. An item without a behavior cannot be bought yet.
 ShopItem :: struct {
 	name:        string,
 	description: string,
-	stats:       string,
 	// What buying one takes out of the bank.
-	cost:        f32,
+	price:       f32,
 	// Path of the model the item is pictured with, empty while it has none.
 	// The same model its spawn puts in the world, named again here until an
 	// item carries the scene it spawns from.
 	model:       string,
 	// Picture of model shown in the item's cell, nil until it is baked.
 	icon:        ^engine.Texture,
-	// Spawns the item's body for the player to place, or nil while the item
-	// has no model.
-	spawn:       proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity,
-	// Makes a spawned body do its job, run once its placement is confirmed.
-	activate:    proc(app: ^engine.App, e: engine.Entity),
+	spawn:       ShopSpawn,
+	activate:    ShopActivate,
 }
 
-SHOP_ITEMS := [?]ShopItem {
-	{
-		name = "Slots",
-		description = "Three reels, house edge.",
-		stats = "Cost $2500\nRTP 80-99%\nFootprint 1x1",
-		cost = 2500,
-		model = SLOT_MODEL_PATH,
-		spawn = slot_machine_spawn,
-		activate = slot_machine_activate,
-	},
-	{
-		name = "Blackjack",
-		description = "Seats five players.",
-		stats = "Cost $6000\nEdge 0.5%\nFootprint 2x2",
-		cost = 6000,
-	},
-	{
-		name = "Roulette",
-		description = "Single zero wheel.",
-		stats = "Cost $9000\nEdge 2.7%\nFootprint 2x2",
-		cost = 9000,
-	},
-	{
-		name = "Bar",
-		description = "Holds patrons longer.",
-		stats = "Cost $4000\nUpkeep $50/day\nFootprint 3x1",
-		cost = 4000,
-	},
-	{
-		name = "Neon Sign",
-		description = "Draws more patrons in.",
-		stats = "Cost $1200\nDraw +10%\nFootprint 1x1",
-		cost = 1200,
-	},
-	{
-		name = "Camera",
-		description = "Catches cheating patrons.",
-		stats = "Cost $800\nCover 8m\nFootprint 1x1",
-		cost = 800,
-	},
+// The items on offer, filled by shop_load.
+shop_items: []ShopItem
+
+// An item as shop.json writes it. Behavior names the code that runs the item,
+// since procs cannot come from json.
+@(private = "file")
+ShopItemJson :: struct {
+	name:        string,
+	description: string,
+	price:       f32,
+	model:       string,
+	behavior:    string,
+}
+
+// The procs a behavior name stands for, nil for an item that names none.
+// Panics on a name no one owns, which is a content bug worth failing loudly
+// for.
+@(private = "file")
+shop_behavior :: proc(name: string) -> (spawn: ShopSpawn, activate: ShopActivate) {
+	switch name {
+	case "":
+		return nil, nil
+	case "slots":
+		return slot_machine_spawn, slot_machine_activate
+	}
+	fmt.panicf("unknown shop behavior %q", name)
+}
+
+// Fills shop_items from shop.json. Run once at startup, before the icons are
+// baked.
+shop_load :: proc() {
+	specs: []ShopItemJson
+	if json.unmarshal(transmute([]byte)SHOP_JSON, &specs) != nil {
+		panic("bad shop json")
+	}
+	defer delete(specs)
+	if len(specs) > SHOP_MAX_ITEMS {
+		fmt.panicf("shop has %d items, at most %d fit", len(specs), SHOP_MAX_ITEMS)
+	}
+	shop_items = make([]ShopItem, len(specs))
+	for spec, i in specs {
+		spawn, activate := shop_behavior(spec.behavior)
+		shop_items[i] = ShopItem {
+			name        = spec.name,
+			description = spec.description,
+			price       = spec.price,
+			model       = spec.model,
+			spawn       = spawn,
+			activate    = activate,
+		}
+	}
 }
 
 // Baked at twice the picture's size, in its aspect so it is not stretched.
@@ -78,7 +98,7 @@ SHOP_ICON_HEIGHT :: u32(SHOP_PICTURE_HEIGHT * 2)
 // Renders every item that has a model into its shop icon. Run once at startup,
 // before the first frame.
 shop_bake_icons :: proc(app: ^engine.App) {
-	for &item in SHOP_ITEMS {
+	for &item in shop_items {
 		if item.model == "" {
 			continue
 		}
@@ -100,9 +120,9 @@ shop_bake_icons :: proc(app: ^engine.App) {
 	}
 }
 
-// Releases the baked icons.
-shop_delete_icons :: proc() {
-	for &item in SHOP_ITEMS {
+// Releases the baked icons and the item list.
+shop_unload :: proc() {
+	for &item in shop_items {
 		if item.icon == nil {
 			continue
 		}
@@ -110,6 +130,7 @@ shop_delete_icons :: proc() {
 		free(item.icon)
 		item.icon = nil
 	}
+	delete(shop_items)
 }
 
 SHOP_COLS :: 3
@@ -147,7 +168,7 @@ shop_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 	if !g.shop_open {
 		return
 	}
-	rows := f32((len(SHOP_ITEMS) + SHOP_COLS - 1) / SHOP_COLS)
+	rows := f32((len(shop_items) + SHOP_COLS - 1) / SHOP_COLS)
 	panel := engine.Rect {
 		w = SHOP_COLS * SHOP_CELL_WIDTH + (SHOP_COLS - 1) * SHOP_GAP + SHOP_PAD * 2,
 		h = rows * SHOP_CELL_HEIGHT + (rows - 1) * SHOP_GAP + SHOP_PAD * 2,
@@ -162,7 +183,7 @@ shop_ui :: proc(app: ^engine.App, ui: ^engine.Ui) {
 		panel.w - SHOP_PAD * 2,
 		panel.h - SHOP_PAD * 2,
 	}
-	for item, i in SHOP_ITEMS {
+	for item, i in shop_items {
 		cell := engine.ui_grid_cell(grid, SHOP_COLS, SHOP_CELL_HEIGHT, SHOP_GAP, i)
 		shop_cell_ui(app, ui, cell, item, &g.shop_details[i])
 	}
@@ -185,7 +206,7 @@ shop_cell_ui :: proc(
 	w := cell.w - SHOP_TEXT_GAP * 2
 	if details^ {
 		y = engine.ui_text(app, ui, {x, y}, .Large, item.name, SHOP_TEXT_COLOR).y + SHOP_TEXT_GAP
-		shop_lines_ui(app, ui, {x, y, w, 0}, item.stats)
+		shop_lines_ui(app, ui, {x, y, w, 0}, fmt.tprintf("Cost $%.0f", item.price))
 	} else {
 		picture := engine.Rect{x, y, w, SHOP_PICTURE_HEIGHT}
 		engine.ui_rect(ui, picture, SHOP_PICTURE_COLOR)
@@ -229,7 +250,7 @@ shop_cell_ui :: proc(
 @(private = "file")
 shop_buy :: proc(app: ^engine.App, item: ShopItem) {
 	g := (^Game)(app.world.user_ptr)
-	if item.spawn == nil || g.bank < item.cost {
+	if item.spawn == nil || g.bank < item.price {
 		return
 	}
 	shop_set_open(app, false)

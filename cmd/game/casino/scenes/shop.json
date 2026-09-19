@@ -1,0 +1,14 @@
+[
+	{
+		"name": "Slots",
+		"description": "Three reels, house edge.",
+		"price": 2500,
+		"model": "models/demo_slot.glb",
+		"behavior": "slots"
+	},
+	{"name": "Blackjack", "description": "Seats five players.", "price": 6000},
+	{"name": "Roulette", "description": "Single zero wheel.", "price": 9000},
+	{"name": "Bar", "description": "Holds patrons longer.", "price": 4000},
+	{"name": "Neon Sign", "description": "Draws more patrons in.", "price": 1200},
+	{"name": "Camera", "description": "Catches cheating patrons.", "price": 800}
+]
