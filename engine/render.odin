@@ -2,6 +2,8 @@ package engine
 
 import "vendor:wgpu"
 
+// Written to the surface as it stands. Unlike a color a shader writes, a clear
+// value is not srgb encoded on the way in, so this is already a display value.
 CLEAR_COLOR :: wgpu.Color{0.1, 0.1, 0.12, 1.0}
 DEPTH_FORMAT :: wgpu.TextureFormat.Depth32Float
 

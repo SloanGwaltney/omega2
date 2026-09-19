@@ -66,7 +66,7 @@ create_window :: proc(app: ^App) {
 
 	app.window.config = wgpu.SurfaceConfiguration {
 		device      = app.window.device,
-		format      = caps.formats[0],
+		format      = srgb_surface_format(caps),
 		usage       = {.RenderAttachment},
 		width       = u32(width),
 		height      = u32(height),
@@ -74,6 +74,21 @@ create_window :: proc(app: ^App) {
 		presentMode = .Immediate,
 	}
 	wgpu.SurfaceConfigure(app.window.surface, &app.window.config)
+}
+
+// The surface's srgb format, which the gpu encodes into when a pipeline writes
+// its linear color. Every shader that targets the surface assumes it, so a
+// surface that cannot offer one is fatal.
+@(private = "file")
+srgb_surface_format :: proc(caps: wgpu.SurfaceCapabilities) -> wgpu.TextureFormat {
+	formats := caps.formats[:caps.formatCount]
+	for format in formats {
+		#partial switch format {
+		case .BGRA8UnormSrgb, .RGBA8UnormSrgb:
+			return format
+		}
+	}
+	panic("surface offers no srgb format")
 }
 
 // Releases the wgpu handles and closes the window.
