@@ -2,8 +2,8 @@
 	{
 		"name": "Slots",
 		"description": "Three reels, house edge.",
-		"price": 2500,
-		"model": "models/demo_slot.glb",
+		"price": 0,
+		"scene": "scenes/slot_machine.json",
 		"behavior": "slots"
 	},
 	{"name": "Blackjack", "description": "Seats five players.", "price": 6000},

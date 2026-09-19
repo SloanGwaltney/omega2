@@ -31,8 +31,9 @@ Placement :: struct {
 	valid:    bool,
 }
 
-// Spawns item's body at the player's feet and hands it to the player to
-// position. The caller has already checked the bank covers it.
+// Builds item's scene at the player's feet and hands the body to the player to
+// position. The caller has already checked the item has a scene and the bank
+// covers it.
 placement_begin :: proc(app: ^engine.App, item: ShopItem) {
 	g := (^Game)(app.world.user_ptr)
 	pos: engine.Vec3
@@ -40,7 +41,7 @@ placement_begin :: proc(app: ^engine.App, item: ShopItem) {
 		pos, _ = placement_target(t^)
 	}
 	g.placement = Placement {
-		entity   = item.spawn(app, pos),
+		entity   = scene_spawn(app, item.scene, pos),
 		cost     = item.price,
 		activate = item.activate,
 	}

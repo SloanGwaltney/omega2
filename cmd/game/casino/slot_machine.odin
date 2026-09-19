@@ -7,13 +7,12 @@ import "../../../engine"
 import "core:fmt"
 import "core:math/rand"
 
-// The machine's body, named by a scene so the mesh comes out of the importer
-// rather than being written by hand. Embedded at compile time, so a renamed
-// scene fails the build rather than the launch.
-SLOT_JSON :: #load("scenes/slot_machine.json", string)
+// The machine's body, built from a scene so the mesh comes out of the importer
+// rather than being written by hand.
+SLOT_MACHINE_SCENE :: "scenes/slot_machine.json"
 
-// A playable machine. Needs the drawable and Aabb slot_machine_spawn gives
-// it, which is what the player's ray hits.
+// A playable machine. Needs the drawable and Aabb its scene gives it, which is
+// what the player's ray hits.
 SlotMachine :: struct {
 	// Percent of stakes this machine pays back, driven by its screen slider.
 	rtp:    f32,
@@ -23,25 +22,14 @@ SlotMachine :: struct {
 
 // Spawns a playable slot machine standing on the floor at pos.
 slot_machine_create :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity {
-	e := slot_machine_spawn(app, pos)
+	e := scene_spawn(app, SLOT_MACHINE_SCENE, pos)
 	slot_machine_activate(app, e)
 	return e
 }
 
-// Spawns a slot machine's body standing on the floor at pos. It draws and
-// collides but cannot be played until slot_machine_activate runs, which is
-// what placement wants while the machine is still being positioned.
-slot_machine_spawn :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity {
-	e, ok := engine.entity_from_json(app.world, SLOT_JSON, casino_component_loader)
-	if !ok {
-		panic("bad slot machine json")
-	}
-	// The scene has no position of its own, so move it here.
-	engine.pool_get(&app.world.transform, e).pos = pos
-	return e
-}
-
-// Makes a spawned machine playable.
+// Makes a machine spawned from the scene playable. A body without this draws
+// and collides but cannot be played, which is what placement wants while the
+// machine is still being positioned.
 slot_machine_activate :: proc(app: ^engine.App, e: engine.Entity) {
 	g := (^Game)(app.world.user_ptr)
 	engine.pool_add(

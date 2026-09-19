@@ -17,51 +17,46 @@ SHOP_JSON :: #load("scenes/shop.json", string)
 // carries. Loading more than this is a content bug.
 SHOP_MAX_ITEMS :: 12
 
-// Spawns an item's body for the player to place.
-ShopSpawn :: proc(app: ^engine.App, pos: engine.Vec3) -> engine.Entity
-// Makes a spawned body do its job, run once its placement is confirmed.
+// Makes a placed body do its job, run once its placement is confirmed.
 ShopActivate :: proc(app: ^engine.App, e: engine.Entity)
 
-// One thing on offer. An item without a behavior cannot be bought yet.
+// One thing on offer. An item without a scene cannot be bought yet.
 ShopItem :: struct {
 	name:        string,
 	description: string,
 	// What buying one takes out of the bank.
 	price:       f32,
-	// Path of the model the item is pictured with, empty while it has none.
-	// The same model its spawn puts in the world, named again here until an
-	// item carries the scene it spawns from.
-	model:       string,
-	// Picture of model shown in the item's cell, nil until it is baked.
+	// Path of the scene buying one builds, empty while the item has none. Also
+	// where the cell's picture comes from.
+	scene:       string,
+	// Picture of the item's scene shown in its cell, nil until it is baked.
 	icon:        ^engine.Texture,
-	spawn:       ShopSpawn,
 	activate:    ShopActivate,
 }
 
 // The items on offer, filled by shop_load.
 shop_items: []ShopItem
 
-// An item as shop.json writes it. Behavior names the code that runs the item,
-// since procs cannot come from json.
+// An item as shop.json writes it. Behavior names the code that makes the item
+// work, since a proc cannot come from json.
 @(private = "file")
 ShopItemJson :: struct {
 	name:        string,
 	description: string,
 	price:       f32,
-	model:       string,
+	scene:       string,
 	behavior:    string,
 }
 
-// The procs a behavior name stands for, nil for an item that names none.
-// Panics on a name no one owns, which is a content bug worth failing loudly
-// for.
+// The proc a behavior name stands for, nil for an item that names none. Panics
+// on a name no one owns, which is a content bug worth failing loudly for.
 @(private = "file")
-shop_behavior :: proc(name: string) -> (spawn: ShopSpawn, activate: ShopActivate) {
+shop_behavior :: proc(name: string) -> ShopActivate {
 	switch name {
 	case "":
-		return nil, nil
+		return nil
 	case "slots":
-		return slot_machine_spawn, slot_machine_activate
+		return slot_machine_activate
 	}
 	fmt.panicf("unknown shop behavior %q", name)
 }
@@ -79,14 +74,12 @@ shop_load :: proc() {
 	}
 	shop_items = make([]ShopItem, len(specs))
 	for spec, i in specs {
-		spawn, activate := shop_behavior(spec.behavior)
 		shop_items[i] = ShopItem {
 			name        = spec.name,
 			description = spec.description,
 			price       = spec.price,
-			model       = spec.model,
-			spawn       = spawn,
-			activate    = activate,
+			scene       = spec.scene,
+			activate    = shop_behavior(spec.behavior),
 		}
 	}
 }
@@ -95,16 +88,20 @@ shop_load :: proc() {
 SHOP_ICON_WIDTH :: u32((SHOP_CELL_WIDTH - SHOP_TEXT_GAP * 2) * 2)
 SHOP_ICON_HEIGHT :: u32(SHOP_PICTURE_HEIGHT * 2)
 
-// Renders every item that has a model into its shop icon. Run once at startup,
-// before the first frame.
+// Renders the model of every item that has a scene into its shop icon. Run
+// once at startup, before the first frame.
 shop_bake_icons :: proc(app: ^engine.App) {
 	for &item in shop_items {
-		if item.model == "" {
+		if item.scene == "" {
 			continue
 		}
-		mesh, ok := model_mesh(item.model)
+		path := scene_model_path(item.scene)
+		if path == "" {
+			continue
+		}
+		mesh, ok := model_mesh(path)
 		if !ok {
-			fmt.panicf("unknown model %q", item.model)
+			fmt.panicf("unknown model %q", path)
 		}
 		item.icon = new(engine.Texture)
 		item.icon^ = engine.icon_bake(
@@ -250,7 +247,7 @@ shop_cell_ui :: proc(
 @(private = "file")
 shop_buy :: proc(app: ^engine.App, item: ShopItem) {
 	g := (^Game)(app.world.user_ptr)
-	if item.spawn == nil || g.bank < item.price {
+	if item.scene == "" || g.bank < item.price {
 		return
 	}
 	shop_set_open(app, false)
