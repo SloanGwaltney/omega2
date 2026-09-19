@@ -150,15 +150,19 @@ plain struct:
 
 ```json
 {"name": "Slots", "description": "Three reels, house edge.",
- "price": 2500, "model": "models/demo_slot.glb", "behavior": "slots"}
+ "price": 2500, "scene": "scenes/slot_machine.json", "behavior": "slots"}
 ```
 
-`model` and `behavior` are both keys into code, for the same reason `Drawable`
-and `Interactable` cannot be named in a scene: a mesh and a proc are not plain
-data. `model` resolves through `MODELS`, and `behavior` resolves through
-`shop_behavior` in `shop.odin`, which returns the spawn and activate pair the
-name stands for. Adding an item that needs new code means one json entry and
-one case there; an item with no `behavior` shows in the grid and cannot be
+Both keys point at something a document cannot hold. `scene` is a path into
+`SCENES` in `cmd/game/casino/scene.odin`, the table of documents embedded with
+`#load` beside `MODELS`; `scene_spawn` builds it where the player places it, and
+`scene_model_path` digs the scene's `casino:model` out for the cell's icon, so
+the model is named in one place only. `behavior` is a key into
+`shop_behavior` in `shop.odin`, which returns the proc that makes a placed body
+work — for slots, the one that adds `Interactable` and `SlotMachine`. Splitting
+it that way means the body is content and only the behaviour is code: an item
+needing neither is a json entry alone, an item with a scene and no `behavior`
+places an inert prop, and an item with no scene shows in the grid and cannot be
 bought.
 
 ## Models from gltf
